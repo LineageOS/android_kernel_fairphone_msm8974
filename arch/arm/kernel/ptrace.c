@@ -924,8 +924,6 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return scno;
-	if (!(current->ptrace & PT_PTRACED))
-		return scno;
 
 	/*
 	 * IP is used to denote syscall entry/exit:
@@ -933,7 +931,12 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 	 */
 	ip = regs->ARM_ip;
 	regs->ARM_ip = why;
-	ptrace_report_syscall(regs);
+
+	if (why)
+		tracehook_report_syscall_exit(regs, 0);
+	else if (tracehook_report_syscall_entry(regs))
+		current_thread_info()->syscall = -1;
+
 	regs->ARM_ip = ip;
 
 	return current_thread_info()->syscall;
