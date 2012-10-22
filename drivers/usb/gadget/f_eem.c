@@ -298,10 +298,9 @@ eem_bind(struct usb_configuration *c, struct usb_function *f)
 fail:
 	usb_free_all_descriptors(f);
 
-	/* we might as well release our claims on endpoints */
-	if (eem->port.out_ep->desc)
+	if (eem->port.out_ep)
 		eem->port.out_ep->driver_data = NULL;
-	if (eem->port.in_ep->desc)
+	if (eem->port.in_ep)
 		eem->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
