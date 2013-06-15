@@ -137,7 +137,7 @@ struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 
 
 /* Lookups */
-typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+typedef int instantiate_t(struct inode *, struct dentry *,
 				struct task_struct *, const void *);
 int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	const char *name, int len,
