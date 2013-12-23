@@ -81,10 +81,11 @@ void power_on_alarm_init(void)
 		power_on_alarm = 0;
 }
 
-void set_power_on_alarm(long secs)
+void set_power_on_alarm(long secs, bool enable)
 {
 	int rc;
-	long rtc_secs, alarm_time;
+	struct timespec wall_time;
+	long rtc_secs, alarm_time, alarm_delta;
 	struct rtc_time rtc_time;
 	struct rtc_wkalrm alarm;
 
@@ -92,15 +93,23 @@ void set_power_on_alarm(long secs)
 	if (rc != 0)
 		return;
 
-	rtc_read_time(rtcdev, &rtc_time);
-	rtc_tm_to_time(&rtc_time, &rtc_secs);
+	if (enable) {
+			power_on_alarm = secs;
+	} else {
+		if (power_on_alarm == secs)
+			power_on_alarm = 0;
+		else
+			goto exit;
+	}
 
-	if (!secs)
+	if (!power_on_alarm)
 		goto disable_alarm;
-	else
-		power_on_alarm = secs + rtc_secs;
 
-	alarm_time = power_on_alarm;
+	rtc_read_time(rtcdev, &rtc_time);
+	getnstimeofday(&wall_time);
+	rtc_tm_to_time(&rtc_time, &rtc_secs);
+	alarm_delta = wall_time.tv_sec - rtc_secs;
+	alarm_time = power_on_alarm - alarm_delta;
 
 	/*
 	 *Substract ALARM_DELTA from actual alarm time
@@ -109,8 +118,7 @@ void set_power_on_alarm(long secs)
 	 */
 	if ((alarm_time - ALARM_DELTA) > rtc_secs)
 		alarm_time -= ALARM_DELTA;
-
-	if (alarm_time <= rtc_secs)
+	else
 		goto disable_alarm;
 
 	rtc_time_to_tm(alarm_time, &alarm.time);
@@ -123,7 +131,9 @@ void set_power_on_alarm(long secs)
 	return;
 
 disable_alarm:
+	power_on_alarm = 0;
 	rtc_alarm_irq_enable(rtcdev, 0);
+exit:
 	mutex_unlock(&power_on_alarm_lock);
 }
 
