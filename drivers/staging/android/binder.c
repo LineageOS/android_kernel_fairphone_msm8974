@@ -2168,6 +2168,7 @@ static void binder_transaction(struct binder_proc *proc,
 	struct binder_context *context = proc->context;
 	char *secctx = NULL;
 	u32 secctx_sz = 0;
+	const struct cred *cred = __task_cred(proc->tsk);
 
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->call_type = reply ? 2 : !!(tr->flags & TF_ONE_WAY);
@@ -2316,7 +2317,7 @@ static void binder_transaction(struct binder_proc *proc,
 		t->from = thread;
 	else
 		t->from = NULL;
-	t->sender_euid = proc->tsk->cred->euid;
+	t->sender_euid = cred->euid;
 	t->to_proc = target_proc;
 	t->to_thread = target_thread;
 	t->code = tr->code;
@@ -3497,6 +3498,7 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	struct binder_proc *proc = filp->private_data;
 	struct binder_context *context = proc->context;
 	struct binder_node *new_node;
+	const struct cred *cred = current_cred();
 
 	if (context->binder_context_mgr_node) {
 		binder_debug(BINDER_DEBUG_TOP_ERRORS,
@@ -3508,17 +3510,17 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	if (ret < 0)
 		goto out;
 	if (context->binder_context_mgr_uid != -1) {
-		if (context->binder_context_mgr_uid != current->cred->euid) {
+		if (context->binder_context_mgr_uid != cred->euid) {
 			binder_debug(BINDER_DEBUG_TOP_ERRORS,
 				     "binder: BINDER_SET_"
 				     "CONTEXT_MGR bad uid %d != %d\n",
-				     current->cred->euid,
+				     cred->euid,
 				     context->binder_context_mgr_uid);
 			ret = -EPERM;
 			goto out;
 		}
 	} else
-		context->binder_context_mgr_uid = current->cred->euid;
+		context->binder_context_mgr_uid = cred->euid;
 
 	new_node = binder_new_node(proc, fbo);
 	if (!new_node) {
