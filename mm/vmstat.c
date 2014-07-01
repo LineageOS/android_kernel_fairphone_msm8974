@@ -1215,7 +1215,7 @@ static int __init setup_vmstat(void)
 	int cpu;
 
 	cpu_notifier_register_begin();
-	__register_cpu_notifier(&vmstat_notifier)
+	__register_cpu_notifier(&vmstat_notifier);
 
 	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	for_each_online_cpu(cpu)
