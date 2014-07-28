@@ -1,0 +1,1 @@
+obj-$(CONFIG_VIDEO_LM3643)	+= lm3644.o

@@ -50,6 +50,15 @@ config LEDS_LM3530
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
+config LEDS_LM3644
+	tristate "LED support for LM3644 Chip"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to LM3644.
+	  The LM3644 is a 2/4MHz fixed-frequency synchronous boost
+	  converter with 1.5A constant current LED driver.
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS
