@@ -5495,6 +5495,9 @@ void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp)
 	void *hdr = ((void **)skb->cb)[1];
 	struct nlattr *data = ((void **)skb->cb)[2];
 
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	nla_nest_end(skb, data);
 	genlmsg_end(skb, hdr);
 
@@ -6829,6 +6832,9 @@ int cfg80211_vendor_cmd_reply(struct sk_buff *skb)
 		kfree_skb(skb);
 		return -EINVAL;
 	}
+
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
 
 	nla_nest_end(skb, data);
 	genlmsg_end(skb, hdr);
