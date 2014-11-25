@@ -398,7 +398,7 @@
 
 &pm8941_chg {
 	status = "ok";
-	qcom,charging-disabled;
+/*	qcom,charging-disabled;*/
 	qcom,battery-data = <&mtp_batterydata>;
 
 	qcom,chgr@1000 {
