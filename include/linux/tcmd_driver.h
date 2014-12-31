@@ -37,7 +37,7 @@ typedef struct{
 	struct pm_gpio gpio_config;
 }TCMD_PM8XXX_GPIO_PARAM;
 
-typedef struct pm8xxx_coincell_chg TCMD_PM8XXX_CC_CHG_PARAM;
+typedef struct qpnp_coincell_chg TCMD_QPNP_CC_CHG_PARAM;
 
 typedef struct pm8xxx_vib_config TCMD_PM8XXX_VIB_PARAM;
 
@@ -47,6 +47,11 @@ typedef struct{
 	uint8_t reg_offset_buf;
 }TCMD_MHL_PARAM;
 typedef unsigned char        UINT8;      /**< Unsigned 8 bit integer */
+
+typedef struct{
+        int usbPresentCurrent;
+        int batPresentCurrent;
+}TCMD_REG_USB_BAT_CURRENT;
 
 #define TCMD_PMIC_ADC_BATTERY_CURRENT 0x08
 #define TCMD_IOCTL_BASE 0x0a
@@ -73,7 +78,7 @@ typedef unsigned char        UINT8;      /**< Unsigned 8 bit integer */
 #define TCMD_IOCTL_GET_GPIO _IOWR(TCMD_IOCTL_BASE, 0x0e, TCMD_PM8XXX_GPIO_PARAM *)
 
 //for coincell
-#define TCMD_IOCTL_SET_COINCELL _IOW(TCMD_IOCTL_BASE, 0x0f, TCMD_PM8XXX_CC_CHG_PARAM *)
+#define TCMD_IOCTL_SET_COINCELL _IOW(TCMD_IOCTL_BASE, 0x0f, TCMD_QPNP_CC_CHG_PARAM *)
 
 //for vibrator
 #define TCMD_IOCTL_SET_VIBRATOR _IOW(TCMD_IOCTL_BASE, 0x10, TCMD_PM8XXX_VIB_PARAM *)
@@ -89,6 +94,15 @@ typedef unsigned char        UINT8;      /**< Unsigned 8 bit integer */
 
 //For USB charging Disable/Enable
 #define TCMD_IOCTL_USB_CHRGING _IOW(TCMD_IOCTL_BASE, 0x16, unsigned char)
+
+// For reading present USB and BATTERY current
+#define TCMD_IOCTL_GET_USB_BAT_CURRENT _IOWR(TCMD_IOCTL_BASE, 0x17, TCMD_REG_USB_BAT_CURRENT*)
+
+// To set USB and BAT current
+#define TCMD_IOCTL_SET_USB_BAT_CURRENT _IOW(TCMD_IOCTL_BASE, 0x18, TCMD_REG_USB_BAT_CURRENT*)
+
+//for Coincall enable disable
+#define TCMD_IOCTL_COINCELL_ENABLE_DISABLE _IOW(TCMD_IOCTL_BASE, 0x19, int *)
 
 #define GPIO_MAP_NAME_SIZE 20
 

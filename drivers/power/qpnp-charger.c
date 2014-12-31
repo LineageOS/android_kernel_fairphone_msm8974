@@ -3129,7 +3129,7 @@ EXPORT_SYMBOL(qpnp_disable_usb_charging);
 
 int qpnp_set_max_battery_charge_current(bool enable)
 {
-	int ret =-1;
+	int ret = -1;
 	unsigned int chg_current = 0;
 	if (!the_chip)
 	{
@@ -3137,14 +3137,75 @@ int qpnp_set_max_battery_charge_current(bool enable)
 		return -EINVAL;
 	}
 
-	chg_current = (enable) ? the_chip->max_bat_chg_current: the_chip->warm_bat_chg_ma;
+	chg_current = (enable) ? 850 : the_chip->warm_bat_chg_ma;
 
 	ret =  qpnp_chg_ibatmax_set(the_chip, chg_current);
-	printk("TCMD: Setting  battery charge current = %d, result = %d\n", chg_current, ret);
+	if(ret < 0) {
+                return ret;
+                }
+	ret = qpnp_chg_iusbmax_set(the_chip, 1500);
 	return ret;
 }
 
 EXPORT_SYMBOL(qpnp_set_max_battery_charge_current);
+
+int qpnp_get_usb_max_current(int* usb_max_current){
+	if (!the_chip)
+        {
+		pr_err("called before init\n");
+		return -EINVAL;
+        }
+
+	*usb_max_current = qpnp_chg_usb_iusbmax_get(the_chip);
+	return 0;
+	}
+
+EXPORT_SYMBOL(qpnp_get_usb_max_current);
+
+int qpnp_get_bat_max_current(int* bat_max_current){
+	int max_current, rc = -1;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+        }
+
+	rc = qpnp_chg_ibatmax_get(the_chip,&max_current);
+	*bat_max_current = max_current;
+
+	return rc;
+        }
+
+EXPORT_SYMBOL(qpnp_get_bat_max_current);
+
+int qpnp_set_usb_max_current(int usb_max_current){
+	int ret = -1;
+        if (!the_chip)
+        {
+                pr_err("called before init\n");
+                return -EINVAL;
+        }
+
+	ret = qpnp_chg_iusbmax_set(the_chip, usb_max_current);
+        return ret;
+        }
+
+EXPORT_SYMBOL(qpnp_set_usb_max_current);
+
+int qpnp_set_bat_max_current(int bat_max_current){
+        int rc = -1;
+        if (!the_chip)
+        {
+                pr_err("called before init\n");
+                return -EINVAL;
+        }
+
+        rc = qpnp_chg_ibatmax_set(the_chip, bat_max_current);
+
+        return rc;
+	}
+
+EXPORT_SYMBOL(qpnp_set_bat_max_current);
 #endif
 
 #define IBAT_TRIM_TGT_MA		500

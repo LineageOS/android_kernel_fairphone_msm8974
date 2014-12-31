@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/pm8xxx/pm8921-charger.h>
 #include <linux/mfd/pm8xxx/ccadc.h>
+#include <linux/mfd/pm8xxx/misc.h>
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
@@ -38,6 +39,14 @@ extern int qpnp_disable_usb_charging(bool disable);
 extern int qpnp_set_max_battery_charge_current(bool enable);
 
 extern int lm3559_flash_set_led_state(int flash_lm3559_state);
+
+extern int qpnp_get_usb_max_current(int* usb_max_current);
+
+extern int qpnp_get_bat_max_current(int* bat_max_current);
+
+extern int qpnp_set_usb_max_current(int usb_max_current);
+
+extern int qpnp_set_bat_max_current(int bat_max_current);
 
 extern struct qpnp_vadc_chip *vchip;
 #endif
@@ -81,7 +90,7 @@ static long tcmd_misc_ioctl( struct file *file,
 {
 #ifdef CONFIG_TCMD
 	void __user *argp = (void __user *)arg;
-	int gpio_enum = -1, irq = -1, gpio_state = -1,rc = 0;
+	int gpio_enum = -1, irq = -1, gpio_state = -1, rc = 0;
 
 	pr_info("tcmd_misc_ioctl is called");
 
@@ -123,8 +132,7 @@ static long tcmd_misc_ioctl( struct file *file,
 				switch(reg_arg.cmd)
 				{
 					case TCMD_REG_ENABLE :
-						printk("\nABHISHEK_REGULATOR_LOGS----DRIVERS/MISC.TCMD_DRIVER.C---TCMD_REGULATOR_ENABLE\n");
-						pr_info("TCMD_REG_ENABLE");
+						printk("TCMD_REGULATOR_ENABLE\n");
 						rc = regulator_enable(reg_p);
 						if (rc) {
 							pr_info( " regulator_enable failed:%d\n", rc);
@@ -132,8 +140,7 @@ static long tcmd_misc_ioctl( struct file *file,
 						}
 						break;
 					case     TCMD_REG_DISABLE:
-						printk("\nABHISHEK_REGULATOR_LOGS----DRIVERS/MISC.TCMD_DRIVER.C---TCMD_REGULATOR_DISABLE\n");
-						pr_info("TCMD_REG_DISABLE");
+						printk("TCMD_REGULATOR_DISABLE\n");
 						rc = regulator_disable(reg_p);
 						if (rc) {
 							pr_info( " regulator_disable failed:%d\n", rc);
@@ -320,23 +327,94 @@ static long tcmd_misc_ioctl( struct file *file,
 
 		break;
 	}
-	/*case TCMD_IOCTL_SET_COINCELL:
+	case TCMD_IOCTL_GET_USB_BAT_CURRENT:
 	{
-		TCMD_PM8XXX_CC_CHG_PARAM coincell_arg;
+		int rc = -1;
+		TCMD_REG_USB_BAT_CURRENT adc_arg;
+		printk("TCMD_IOCTL_GET_USB_BAT_CURRENT");
+		if (copy_from_user(&adc_arg, argp, sizeof(TCMD_REG_USB_BAT_CURRENT)))
+		{
+			return -EFAULT;
+		}
 
+		qpnp_get_usb_max_current(&adc_arg.usbPresentCurrent);
+		rc = qpnp_get_bat_max_current(&adc_arg.batPresentCurrent);
+
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		if(copy_to_user((TCMD_REG_USB_BAT_CURRENT *)argp, &adc_arg, sizeof(TCMD_REG_USB_BAT_CURRENT)))
+				return -EFAULT;
+
+		return rc;
+	}
+	case TCMD_IOCTL_SET_USB_BAT_CURRENT:
+	{
+		int rc = -1;
+                TCMD_REG_USB_BAT_CURRENT adc_arg;
+                printk("TCMD_IOCTL_GET_USB_BAT_CURRENT");
+                if (copy_from_user(&adc_arg, argp, sizeof(TCMD_REG_USB_BAT_CURRENT)))
+                {
+                        return -EFAULT;
+                }
+
+		rc = qpnp_set_usb_max_current(adc_arg.usbPresentCurrent);
+		if(rc < 0)
+		{
+			return rc;
+		}
+
+		rc = qpnp_set_bat_max_current(adc_arg.batPresentCurrent);
+		return rc;
+	}
+	case TCMD_IOCTL_COINCELL_ENABLE_DISABLE:
+	{
+		int coincell_state;
+		pr_info("TCMD_IOCTL_COINCELL_ENABLE_DISABLE\n");
+		if(copy_from_user(&coincell_state, argp, sizeof(int)))
+                        return -EFAULT;
+		printk("TCMD:Set charger state entering with value : %d",coincell_state);
+		rc = tcmd_qpnp_coincell_set_charger(coincell_state);
+		if(rc){
+                        pr_info("Error on calling  tcmd_qpnp_coincell_set_charger\n");
+			printk("TCMD:Error on calling tcms_qpnp_coincell_set_charger : %d",rc);
+                        return rc;
+                }
+		printk("TCMD:Set charger state out with value : %d",rc);
+		break;
+	}
+	case TCMD_IOCTL_SET_COINCELL:
+	{
+		TCMD_QPNP_CC_CHG_PARAM coincell_arg;
 		printk("TCMD_IOCTL_SET_COINCELL");
-		if (copy_from_user(&coincell_arg, argp, sizeof(TCMD_PM8XXX_CC_CHG_PARAM)))
+		if (copy_from_user(&coincell_arg, argp, sizeof(TCMD_QPNP_CC_CHG_PARAM)))
 			return -EFAULT;
 
-		rc = pm8xxx_coincell_chg_config(&coincell_arg);
+		//rc = pm8xxx_coincell_chg_config(&coincell_arg);
+		printk("\nState - > %d \n Voltage - > %d \n Resistance -> %d \n",coincell_arg.state,coincell_arg.voltage,coincell_arg.resistance);
+		if((rc = tcmd_qpnp_coincell_set_charger(coincell_arg.state))){
+			printk("Error in configuring the state : tcmd_qpnp_coincell_set_charger : rc= %d",rc);
+			return rc;
+		}
+		if((rc =  tcmd_qpnp_coincell_set_voltage(coincell_arg.voltage))){
+			printk("Error in configuring Voltage :tcmd_qpnp_coincell_set_voltage: rc= %d",rc);
+                        return rc;
+		}
+		if((rc = tcmd_qpnp_coincell_set_resistance(coincell_arg.resistance)))	{
+			printk("Error in configuring Resistance :tcmd_qpnp_coincell_set_resistance : rc= %d",rc);
+                        return rc;
+		}
 
 		if (rc) {
-			pr_info("Error on calling pm8xxx_coincell_chg_config");
+			pr_info("Error on calling pm8xxx_coincell_chg_config ");
+			printk("value of rc = %d",rc);
 			return rc;
 		}
 		break;
 	}
-	case TCMD_IOCTL_SET_VIBRATOR:
+/*	case TCMD_IOCTL_SET_VIBRATOR:
 	{
 		TCMD_PM8XXX_VIB_PARAM vib_arg;
 

@@ -1016,6 +1016,9 @@ struct qpnp_adc_amux_properties {
 
 #ifdef CONFIG_TCMD
 int tcmd_get_battery_current(int *result_ua);
+int tcmd_qpnp_coincell_set_resistance(int rset);
+int tcmd_qpnp_coincell_set_voltage(int vset);
+int tcmd_qpnp_coincell_set_charger(bool enabled);
 #endif
 
 /* SW index's for PMIC type and version used by QPNP VADC and IADC */

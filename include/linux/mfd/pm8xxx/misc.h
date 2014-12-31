@@ -60,6 +60,14 @@ struct pm8xxx_coincell_chg {
 	enum pm8xxx_coincell_chg_resistor	resistor;
 };
 
+#ifdef CONFIG_TCMD
+struct qpnp_coincell_chg {
+	int state;
+	int voltage;
+	int resistance;
+};
+#endif
+
 enum pm8xxx_smpl_delay {
 	PM8XXX_SMPL_DELAY_0p5,
 	PM8XXX_SMPL_DELAY_1p0,
