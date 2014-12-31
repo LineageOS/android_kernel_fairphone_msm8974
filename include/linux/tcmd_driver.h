@@ -104,6 +104,10 @@ typedef struct{
 //for Coincall enable disable
 #define TCMD_IOCTL_COINCELL_ENABLE_DISABLE _IOW(TCMD_IOCTL_BASE, 0x19, int *)
 
+//for charging path priority
+#define TCMD_IOCTL_CHGPTH_PRIORITY _IOW(TCMD_IOCTL_BASE, 0x20, unsigned char)
+
+
 #define GPIO_MAP_NAME_SIZE 20
 
 struct gpio_mapping {

@@ -48,6 +48,8 @@ extern int qpnp_set_usb_max_current(int usb_max_current);
 
 extern int qpnp_set_bat_max_current(int bat_max_current);
 
+extern int qpnp_chg_priority(int enable);
+
 extern struct qpnp_vadc_chip *vchip;
 #endif
 
@@ -254,6 +256,33 @@ static long tcmd_misc_ioctl( struct file *file,
 						}
 				break;
 				}
+       case TCMD_IOCTL_CHGPTH_PRIORITY:
+                               {
+                               unsigned char charging_path_priority;
+                               pr_info("TCMD: cmd = TCMD_IOCTL_CHGPTH_PRIORITY\n");
+                               if(copy_from_user(&charging_path_priority, argp, sizeof(unsigned char)))
+                               return -EFAULT;
+
+                               switch(charging_path_priority)
+                                       {
+                                       case 0:
+                                               printk("TCMD: tcmd_driver : USB_IN priority \n");
+                                               rc = qpnp_chg_priority(charging_path_priority);
+                                               if(rc) {
+                                                       printk("TCMD: qpnp_chg_priority USB_IN failed:%d\n", rc);
+                                                       return rc;
+                                                       }
+                                                       break;
+                                       case 1:
+                                               printk("TCMD: tcmd_driver : DC_IN priority \n");
+                                               rc = qpnp_chg_priority(charging_path_priority);
+                                               if(rc) {
+                                                       printk("TCMD: qpnp_chg_priority DC_IN failed:%d\n", rc);
+                                                       return rc;
+                                                       }
+                                        }
+                               break;
+                               }
 	/*case TCMD_IOCTL_SET_FLASH_LM3559:
 	{
 		int flash_lm3559_state;
