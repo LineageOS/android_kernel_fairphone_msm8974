@@ -774,6 +774,17 @@
 			qcom,fast-avg-setup = <0>;
 		};
 
+		chan@b6 {
+                        label = "amux_in";
+                        reg = <0xb6>;
+                        qcom,decimation = <0>;
+                        qcom,pre-div-channel-scaling = <0>;
+                        qcom,calibration-type = "ratiometric";
+                        qcom,scale-function = <0>;
+                        qcom,hw-settle-time = <2>;
+                        qcom,fast-avg-setup = <0>;
+                };
+
 		chan@b7 {
 			label = "pa_therm1";
 			reg = <0xb7>;
