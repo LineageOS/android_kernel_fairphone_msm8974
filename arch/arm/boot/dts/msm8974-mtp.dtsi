@@ -12,6 +12,7 @@
 
 /include/ "msm8974-camera-sensor-mtp.dtsi"
 /include/ "msm8974-leds.dtsi"
+/include/ "msm8974-regulator.dtsi"
 
 / {
 	aliases {
@@ -25,7 +26,7 @@
 	};
 
 	qcom,mdss_dsi@fd922800 {
-		qcom,dsi-pref-prim-pan = <&dsi_tosh_720_vid>;
+		qcom,dsi-pref-prim-pan = <&dsi_otm1902b_1080p_cmd>;
 	};
 
 	qcom,mdss_mdp@fd900000 {
@@ -38,20 +39,22 @@
 	};
 
 	i2c@f9924000 {
-		synaptics@20 {
-			compatible = "synaptics,rmi4";
+		synaptics_dsx@20 {
+			compatible = "synaptics,dsx";
 			reg = <0x20>;
 			interrupt-parent = <&msmgpio>;
-			interrupts = <61 0x2008>;
-			vdd-supply = <&pm8941_l18>;
-			vcc_i2c-supply = <&pm8941_lvs1>;
-			synaptics,reset-gpio = <&msmgpio 60 0x00>;
-			synaptics,irq-gpio = <&msmgpio 61 0x2008>;
-			synaptics,display-coords = <0 0 1079 1919>;
-			synaptics,i2c-pull-up;
-			synaptics,power-down;
-			synaptics,disable-gpios;
-			synaptics,do-lockdown;
+			interrupts = <28 0x2>;
+			vcc_i2c-supply = <&pm8941_s3>;
+			synaptics,bus-reg-name = "vcc_i2c";
+			synaptics,irq-gpio = <&msmgpio 28 0x00>;
+			synaptics,irq-on-state = <0>;
+			synaptics,irq-flags = <0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
+			synaptics,power-delay-ms = <160>;
+			synaptics,reset-gpio =<&msmgpio 55 0x00>;
+			synaptics,reset-on-state =<0>;
+			synaptics,reset-delay-ms = <100>;
+			//synaptics,max-y-for-2d = <1800>;
+			synaptics,vir-button-codes = <102 100 1800 100 60 158 300 1800 100 60>;
 		};
 
 		atmel_mxt_ts@4a {
@@ -732,8 +735,8 @@
 	};
 };
 
-&dsi_tosh_720_vid {
-       qcom,cont-splash-enabled;
+&dsi_otm1902b_1080p_cmd {
+       //qcom,cont-splash-enabled;
 };
 
 &dsi_generic_720p_cmd {
