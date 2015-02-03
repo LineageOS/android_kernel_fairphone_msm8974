@@ -309,6 +309,9 @@ static enum power_supply_property msm_bms_power_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 };
+#ifdef CONFIG_TCMD
+static struct qpnp_bms_chip *bms_chip;
+#endif
 
 static int discard_backup_fcc_data(struct qpnp_bms_chip *chip);
 static void backup_charge_cycle(struct qpnp_bms_chip *chip);
@@ -623,7 +626,16 @@ static int get_battery_current(struct qpnp_bms_chip *chip, int *result_ua)
 	*result_ua = temp_current;
 	return 0;
 }
-
+#ifdef CONFIG_TCMD
+int tcmd_get_battery_current(int *result_ua)
+{
+	int result_ibat_ua;
+	get_battery_current(bms_chip,&result_ibat_ua);
+	*result_ua = -1 * result_ibat_ua;
+	pr_debug("ibat=%duA\n", *result_ua);
+	return 0;
+}
+#endif
 static int get_battery_voltage(struct qpnp_bms_chip *chip, int *result_uv)
 {
 	int rc;

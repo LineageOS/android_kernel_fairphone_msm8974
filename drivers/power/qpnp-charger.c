@@ -517,6 +517,10 @@ static struct kernel_param_ops ext_ovp_en_ops = {
 module_param_cb(ext_ovp_isns_online, &ext_ovp_en_ops,
 		&ext_ovp_isns_online, 0664);
 
+#ifdef CONFIG_TCMD
+static struct qpnp_chg_chip *the_chip;
+#endif
+
 static inline int
 get_bpd(const char *name)
 {
@@ -3041,6 +3045,107 @@ qpnp_chg_vddsafe_set(struct qpnp_chg_chip *chip, int voltage)
 	return qpnp_chg_write(chip, &temp,
 		chip->chgr_base + CHGR_VDD_SAFE, 1);
 }
+
+#ifdef CONFIG_TCMD
+int qpnp_disable_source_current(bool disable)
+{
+	int ret =-1;
+	if(!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+	if(disable)
+	{
+		ret = qpnp_chg_charge_en(the_chip, !disable);
+		if(ret)
+		{
+			printk("TCMD : qpnp_chg_charge_en failed. result = %d", ret);
+			return ret;
+		}
+		else
+		{
+			ret = qpnp_chg_force_run_on_batt(the_chip, true);
+			if(ret)
+				printk("TCMD : pnp_chg_force_run_on_batt failed. result = %d", ret);
+		}
+	}
+	else
+	{
+		ret = qpnp_chg_force_run_on_batt(the_chip, false);
+		if(ret)
+		{
+			printk("TCMD : pnp_chg_force_run_on_batt failed. result = %d", ret);
+			return ret;
+		}
+		else
+		{
+			ret = qpnp_chg_charge_en(the_chip, !disable);
+			if(ret)
+				printk("TCMD : qpnp_chg_charge_en failed. result = %d", ret);
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_disable_source_current);
+
+int qpnp_disable_usb_charging(bool disable)
+{
+	int ret =-1;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+
+	ret =  qpnp_chg_usb_suspend_enable(the_chip, disable);
+	if(disable)
+	{
+		printk("TCMD : Disable USB charging\n");
+		ret = qpnp_chg_iusbmax_set(the_chip, QPNP_CHG_I_MAX_MIN_100);
+	}
+	else
+	{
+		printk("TCMD : Enable USB charging\n");
+		ret = qpnp_chg_iusbmax_set(the_chip, QPNP_CHG_I_MAX_MAX_MA);
+		if(ret)
+		{
+			printk("TCMD : FAILED to set MAX USB current !\n");
+		}
+		else
+		{
+			ret = qpnp_disable_source_current(false);
+			if(ret)
+			{
+				printk("TCMD : FAILED to enable source current !\n");
+			}
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_disable_usb_charging);
+
+int qpnp_set_max_battery_charge_current(bool enable)
+{
+	int ret =-1;
+	unsigned int chg_current = 0;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+
+	chg_current = (enable) ? the_chip->max_bat_chg_current: the_chip->warm_bat_chg_ma;
+
+	ret =  qpnp_chg_ibatmax_set(the_chip, chg_current);
+	printk("TCMD: Setting  battery charge current = %d, result = %d\n", chg_current, ret);
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_set_max_battery_charge_current);
+#endif
 
 #define IBAT_TRIM_TGT_MA		500
 #define IBAT_TRIM_OFFSET_MASK		0x7F
