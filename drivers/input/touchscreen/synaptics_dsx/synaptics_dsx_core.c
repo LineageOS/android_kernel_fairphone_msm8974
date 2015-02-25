@@ -3526,6 +3526,10 @@ static int synaptics_rmi4_suspend(struct device *dev)
 		goto exit;
 	}
 
+       // [BUGFIX]-Mod-BEGIN by _TSBJ,shang.liu,02/25/2015
+	rmi4_data->suspend = true;
+       // [BUGFIX]-Mod-END by _TSBJ,shang.liu
+
 	if (!rmi4_data->suspend) {
 		synaptics_rmi4_irq_enable(rmi4_data, false, false);
 		synaptics_rmi4_sensor_sleep(rmi4_data);
