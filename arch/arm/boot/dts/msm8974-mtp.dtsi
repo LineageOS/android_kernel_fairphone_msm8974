@@ -745,7 +745,7 @@
 };
 
 &dsi_otm1902b_1080p_cmd {
-       //qcom,cont-splash-enabled;
+       qcom,cont-splash-enabled;
 };
 
 &dsi_generic_720p_cmd {

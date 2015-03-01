@@ -510,7 +510,7 @@ static struct synaptics_rmi4_exp_fn_data exp_data;
 
 struct synaptics_dsx_button_map *vir_button_map;
 
-struct synaptics_dsx_board_data *synaptics_touch_bdata;
+struct synaptics_dsx_board_data *synaptics_touch_bdata = NULL;
 
 static struct device_attribute attrs[] = {
 	__ATTR(reset, S_IWUGO,
