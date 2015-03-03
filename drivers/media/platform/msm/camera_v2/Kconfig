@@ -128,6 +128,15 @@ config HI256
                 snapshot config = 3264 * 2448 at 18 fps.
                 2 lanes max fps is 18, 4 lanes max fps is 24.
 
+config OV2685
+	bool "Sensor OV2685 (YUV .2M)"
+	depends on MSMB_CAMERA
+	---help---
+		ov2685 is a OmniVision .2 MP YUV Sensor.
+		It supports 2 mipi lanes. Snapshot is 1600*1200
+		at 15fps, Preview is 800*600 at 30 fps.
+		It does not support auto focus.
+
 config OV5648
 	bool "Sensor OV5648 (BAYER 5M)"
 	depends on MSMB_CAMERA
