@@ -215,6 +215,7 @@
 		qcom,ibatmax-cool-ma = <350>;
 		qcom,vbatdet-delta-mv = <100>;
 		qcom,resume-soc = <99>;
+		qcom,btc-disabled = <1>;
 		qcom,tchg-mins = <150>;
 		qcom,chg-vadc = <&pm8941_vadc>;
 		qcom,chg-iadc = <&pm8941_iadc>;
