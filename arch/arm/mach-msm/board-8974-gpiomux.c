@@ -751,6 +751,8 @@ static struct gpiomux_setting cam_settings[] = {
 	},
 };
 
+//In FP2, gpio 62 wasn't used for sd card detecting. so annotate it.
+#if 0
 static struct gpiomux_setting sd_card_det_active_config = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -772,6 +774,7 @@ static struct msm_gpiomux_config sd_card_det __initdata = {
 		[GPIOMUX_SUSPENDED] = &sd_card_det_sleep_config,
 	},
 };
+#endif
 
 static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 	{
@@ -1471,8 +1474,8 @@ void __init msm_8974_init_gpiomux(void)
 	else
 		msm_gpiomux_install(msm_sensor_configs, \
 				ARRAY_SIZE(msm_sensor_configs));
-
-	msm_gpiomux_install(&sd_card_det, 1);
+//In FP2, gpio 62 wasn't used for sd card detecting. so annotate it.
+//	msm_gpiomux_install(&sd_card_det, 1);
 
 	if (machine_is_apq8074() && (of_board_is_liquid() || \
 	    of_board_is_dragonboard()))
