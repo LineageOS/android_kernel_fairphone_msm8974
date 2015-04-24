@@ -294,8 +294,8 @@ static struct gpiomux_setting atmel_int_act_cfg = {
 
 static struct gpiomux_setting atmel_int_sus_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
 };
 
 static struct gpiomux_setting taiko_reset = {
@@ -333,14 +333,14 @@ static struct msm_gpiomux_config hap_lvl_shft_config[] __initdata = {
 
 static struct msm_gpiomux_config msm_touch_configs[] __initdata = {
 	{
-		.gpio      = 60,		/* TOUCH RESET */
+		.gpio      = 55,		/* TOUCH RESET */
 		.settings = {
 			[GPIOMUX_ACTIVE] = &atmel_resout_act_cfg,
 			[GPIOMUX_SUSPENDED] = &atmel_resout_sus_cfg,
 		},
 	},
 	{
-		.gpio      = 61,		/* TOUCH IRQ */
+		.gpio      = 28,		/* TOUCH IRQ */
 		.settings = {
 			[GPIOMUX_ACTIVE] = &atmel_int_act_cfg,
 			[GPIOMUX_SUSPENDED] = &atmel_int_sus_cfg,
@@ -557,7 +557,7 @@ static struct msm_gpiomux_config msm_rumi_blsp_configs[] __initdata = {
 
 static struct msm_gpiomux_config msm_lcd_configs[] __initdata = {
 	{
-		.gpio = 58,
+		.gpio = 25,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &lcd_en_act_cfg,
 			[GPIOMUX_SUSPENDED] = &lcd_en_sus_cfg,
@@ -695,13 +695,13 @@ static struct msm_gpiomux_config msm_blsp_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[0],
 		},
 	},
-	{
-		.gpio      = 55,		/* BLSP2 QUP4 SPI_CS0_N */
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_spi_config,
-			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[0],
-		},
-	},
+	//{
+	//	.gpio      = 55,		/* BLSP2 QUP4 SPI_CS0_N */
+	//	.settings = {
+	//		[GPIOMUX_ACTIVE] = &gpio_spi_config,
+	//		[GPIOMUX_SUSPENDED] = &gpio_suspend_config[0],
+	//	},
+	//},
 };
 
 static struct msm_gpiomux_config msm8974_slimbus_config[] __initdata = {
@@ -751,6 +751,8 @@ static struct gpiomux_setting cam_settings[] = {
 	},
 };
 
+//In FP2, gpio 62 wasn't used for sd card detecting. so annotate it.
+#if 0
 static struct gpiomux_setting sd_card_det_active_config = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -772,6 +774,7 @@ static struct msm_gpiomux_config sd_card_det __initdata = {
 		[GPIOMUX_SUSPENDED] = &sd_card_det_sleep_config,
 	},
 };
+#endif
 
 static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 	{
@@ -844,13 +847,13 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
 		},
 	},
-	{
-		.gpio = 25, /* WEBCAM2_RESET_N */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[3],
-			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
-		},
-	},
+//	{
+//		.gpio = 25, /* WEBCAM2_RESET_N */
+//		.settings = {
+//			[GPIOMUX_ACTIVE]    = &cam_settings[3],
+//			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
+//		},
+//	},
 	{
 		.gpio = 26, /* CAM_IRQ */
 		.settings = {
@@ -865,13 +868,13 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
 		},
 	},
-	{
-		.gpio = 28, /* WEBCAM1_STANDBY */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[3],
-			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
-		},
-	},
+	//{
+	//	.gpio = 28, /* WEBCAM1_STANDBY */
+	//	.settings = {
+	//		[GPIOMUX_ACTIVE]    = &cam_settings[3],
+	//		[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
+	//	},
+	//},
 	{
 		.gpio = 89, /* CAM1_STANDBY_N */
 		.settings = {
@@ -1471,8 +1474,8 @@ void __init msm_8974_init_gpiomux(void)
 	else
 		msm_gpiomux_install(msm_sensor_configs, \
 				ARRAY_SIZE(msm_sensor_configs));
-
-	msm_gpiomux_install(&sd_card_det, 1);
+//In FP2, gpio 62 wasn't used for sd card detecting. so annotate it.
+//	msm_gpiomux_install(&sd_card_det, 1);
 
 	if (machine_is_apq8074() && (of_board_is_liquid() || \
 	    of_board_is_dragonboard()))

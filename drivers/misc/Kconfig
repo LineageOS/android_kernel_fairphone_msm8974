@@ -665,6 +665,25 @@ config TI_DRV2667
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti_drv2667.
 
+config TCMD_DRIVER
+	bool "tcmd driver"
+	default n
+
+config TCMD
+	bool "tcmd config"
+	default n
+
+config TI_DRV2603
+       tristate "TI's DRV2667 haptic controller support"
+       default n
+       help
+	 The DRV2603 is a piezo haptic controller chip. It can drive
+         piezo haptics either in digital mode or analog mode. This chip
+         can be used in variety of devices to provide haptic support.
+
+         To compile this driver as a module, choose M here: the
+         module will be called ti_drv2603.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

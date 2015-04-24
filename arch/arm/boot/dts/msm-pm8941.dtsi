@@ -124,7 +124,7 @@
 
 		qcom,r-sense-uohm = <10000>;
 		qcom,v-cutoff-uv = <3400000>;
-		qcom,max-voltage-uv = <4200000>;
+		qcom,max-voltage-uv = <4350000>;
 		qcom,r-conn-mohm = <0>;
 		qcom,shutdown-soc-valid-limit = <100>;
 		qcom,adjust-soc-low-threshold = <15>;
@@ -200,9 +200,9 @@
 		#size-cells = <1>;
 		status = "disabled";
 
-		qcom,vddmax-mv = <4200>;
-		qcom,vddsafe-mv = <4230>;
-		qcom,vinmin-mv = <4300>;
+		qcom,vddmax-mv = <4350>;
+		qcom,vddsafe-mv = <4380>;
+		qcom,vinmin-mv = <4450>;
 		qcom,ibatmax-ma = <1500>;
 		qcom,ibatterm-ma = <100>;
 		qcom,ibatsafe-ma = <1500>;
@@ -215,6 +215,7 @@
 		qcom,ibatmax-cool-ma = <350>;
 		qcom,vbatdet-delta-mv = <100>;
 		qcom,resume-soc = <99>;
+		qcom,btc-disabled = <1>;
 		qcom,tchg-mins = <150>;
 		qcom,chg-vadc = <&pm8941_vadc>;
 		qcom,chg-iadc = <&pm8941_iadc>;
@@ -773,6 +774,17 @@
 			qcom,hw-settle-time = <2>;
 			qcom,fast-avg-setup = <0>;
 		};
+
+		chan@b6 {
+                        label = "amux_in";
+                        reg = <0xb6>;
+                        qcom,decimation = <0>;
+                        qcom,pre-div-channel-scaling = <0>;
+                        qcom,calibration-type = "ratiometric";
+                        qcom,scale-function = <0>;
+                        qcom,hw-settle-time = <2>;
+                        qcom,fast-avg-setup = <0>;
+                };
 
 		chan@b7 {
 			label = "pa_therm1";

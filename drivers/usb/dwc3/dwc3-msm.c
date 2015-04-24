@@ -2274,6 +2274,27 @@ const struct file_operations dwc3_connect_fops = {
 	.release = single_release,
 };
 
+#ifdef CONFIG_TCMD
+static int dwc3_show_chg_type(struct seq_file *s, void *unused)
+{
+        struct dwc3_msm *mdwc = s->private;
+        seq_printf(s, "%s\n", chg_to_string(mdwc->charger.chg_type));
+        return 0;
+}
+
+static int dwc3_chg_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, dwc3_show_chg_type, inode->i_private);
+}
+
+const struct file_operations dwc3_chg_fops = {
+        .open = dwc3_chg_open,
+        .read = seq_read,
+        .llseek = seq_lseek,
+        .release = single_release,
+};
+#endif
+
 static struct dentry *dwc3_debugfs_root;
 
 static void dwc3_msm_debugfs_init(struct dwc3_msm *mdwc)
@@ -2294,7 +2315,11 @@ static void dwc3_msm_debugfs_init(struct dwc3_msm *mdwc)
 	if (!debugfs_create_file("connect", S_IRUGO | S_IWUSR,
 				dwc3_debugfs_root, mdwc, &dwc3_connect_fops))
 		goto error;
-
+	#ifdef CONFIG_TCMD
+	if (!debugfs_create_file("chg_type", S_IRUGO,
+                                dwc3_debugfs_root, mdwc, &dwc3_chg_fops))
+		goto error;
+	#endif
 	return;
 
 error:

@@ -123,7 +123,7 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.mclk_rate = TAIKO_EXT_CLK_RATE,
 	.gpio = 0,
 	.gpio_irq = 0,
-	.gpio_level_insert = 1,
+	.gpio_level_insert = 0,
 	.detect_extn_cable = true,
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
 	.insert_detect = true,
@@ -1710,14 +1710,14 @@ void *def_taiko_mbhc_cal(void)
 	S(n_btn_con, 2);
 	S(num_btn, WCD9XXX_MBHC_DEF_BUTTONS);
 	S(v_btn_press_delta_sta, 100);
-	S(v_btn_press_delta_cic, 50);
+	S(v_btn_press_delta_cic, 700);
 #undef S
 	btn_cfg = WCD9XXX_MBHC_CAL_BTN_DET_PTR(taiko_cal);
 	btn_low = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_V_BTN_LOW);
 	btn_high = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg,
 					       MBHC_BTN_DET_V_BTN_HIGH);
-	btn_low[0] = -50;
-	btn_high[0] = 20;
+	btn_low[0] = -900;
+	btn_high[0] = -650;
 	btn_low[1] = 21;
 	btn_high[1] = 61;
 	btn_low[2] = 62;
