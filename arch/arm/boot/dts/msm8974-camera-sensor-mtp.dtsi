@@ -70,7 +70,7 @@
 		qcom,sensor-mode = <1>;
 		qcom,cci-master = <0>;
 	};
-
+/*
   qcom,camera@20 {
 		compatible = "qcom,ov2685";
 		reg = <0x20>;
@@ -109,7 +109,7 @@
 		qcom,sensor-mode = <1>;
 		qcom,cci-master = <1>;
 	};
-
+*/
 	qcom,camera@0 {
 		cell-index = <0>;
 		compatible = "qcom,camera";
@@ -177,7 +177,42 @@
 		qcom,cci-master = <0>;
 		status = "ok";
 	};
+        qcom,camera@2 {
+                cell-index = <2>;
+                compatible = "qcom,camera";
+                reg = <0x02>;
+                qcom,csiphy-sd-index = <2>;
+                qcom,csid-sd-index = <0>;
+                qcom,mount-angle = <270>;
 
+                cam_vdig-supply = <&pm8941_l3>;
+                cam_vana-supply = <&pm8941_l22>;
+                cam_vio-supply = <&pm8941_lvs3>;
+                qcom,cam-vreg-name = "cam_vdig", "cam_vana", "cam_vio";
+                qcom,cam-vreg-type = <0 0 1>;
+                qcom,cam-vreg-min-voltage = <1225000 3000000 0>;
+                qcom,cam-vreg-max-voltage = <1225000 3000000 0>;
+                qcom,cam-vreg-op-mode = <105000 80000 0>;
+
+                qcom,gpio-no-mux = <0>;
+                gpios = <&msmgpio 17 0>,
+                        <&msmgpio 18 0>;
+                #qcom,gpio-reset = <1>;
+                qcom,gpio-vdig = <1>;
+                qcom,gpio-req-tbl-num = <0 1>;
+                qcom,gpio-req-tbl-flags = <1 0>;
+                qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
+                                          "CAM_VDIG";
+
+                qcom,sensor-position = <1>;
+                qcom,sensor-mode = <1>;
+                qcom,cci-master = <1>;
+
+
+        };
+
+
+/*
 	qcom,camera@2 {
 		cell-index = <2>;
 		compatible = "qcom,camera";
@@ -209,5 +244,5 @@
 		qcom,cci-master = <1>;
 		status = "ok";
 	};
-
+*/
 };
