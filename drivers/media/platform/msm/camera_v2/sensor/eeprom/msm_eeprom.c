@@ -302,7 +302,7 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 				emap[j].page.data, emap[j].page.data_t);
 				msleep(emap[j].page.delay);
 			if (rc < 0) {
-				pr_err("%s: page write failed\n", __func__);
+				pr_err("%s: j = %d page write failed\n", __func__, j);
 				return rc;
 			}
 		}
@@ -1028,7 +1028,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		goto power_down;
 	}
 	for (j = 0; j < e_ctrl->cal_data.num_data; j++)
-		CDBG("memory_data[%d] = 0x%X\n", j,
+		printk("weidong memory_data[%d] = 0x%X\n", j,
 		     e_ctrl->cal_data.mapdata[j]);
 
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
