@@ -705,7 +705,8 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		path[ppos].p_depth = i;
 		path[ppos].p_ext = NULL;
 
-		bh = sb_getblk(inode->i_sb, path[ppos].p_block);
+		bh = sb_getblk_gfp(inode->i_sb, path[ppos].p_block,
+				   __GFP_MOVABLE | GFP_NOFS);
 		if (unlikely(!bh)) {
 			ret = -ENOMEM;
 			goto err;
@@ -911,7 +912,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		err = -EIO;
 		goto cleanup;
 	}
-	bh = sb_getblk(inode->i_sb, newblock);
+	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
 	if (!bh) {
 		err = -ENOMEM;
 		goto cleanup;
@@ -1105,7 +1106,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	if (newblock == 0)
 		return err;
 
-	bh = sb_getblk(inode->i_sb, newblock);
+	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
 	if (!bh)
 		return -ENOMEM;
 	lock_buffer(bh);
