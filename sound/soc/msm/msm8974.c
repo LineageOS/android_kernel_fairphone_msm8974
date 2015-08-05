@@ -1716,12 +1716,15 @@ void *def_taiko_mbhc_cal(void)
 	btn_low = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_V_BTN_LOW);
 	btn_high = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg,
 					       MBHC_BTN_DET_V_BTN_HIGH);
-	btn_low[0] = -900;
-	btn_high[0] = -650;
-	btn_low[1] = 21;
-	btn_high[1] = 61;
-	btn_low[2] = 62;
-	btn_high[2] = 104;
+
+/*Modify button threshold value for multibutton. These value only is adaptive some headsets,not all --- begin*/
+	btn_low[0] = -50;
+	btn_high[0] = 80;
+	btn_low[1] = 80;
+	btn_high[1] = 260;
+	btn_low[2] = 260;
+	btn_high[2] = 450;
+#if 0
 	btn_low[3] = 105;
 	btn_high[3] = 148;
 	btn_low[4] = 149;
@@ -1732,6 +1735,9 @@ void *def_taiko_mbhc_cal(void)
 	btn_high[6] = 269;
 	btn_low[7] = 270;
 	btn_high[7] = 500;
+#endif
+/*Modify button threshold value for multibutton. These value only is adaptive some headsets,not all --- end*/
+
 	n_ready = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_N_READY);
 	n_ready[0] = 80;
 	n_ready[1] = 68;
