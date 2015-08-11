@@ -2918,8 +2918,8 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 		rmi4_data->sensor_max_y = temp;
 	}
 
-	if (bdata->max_y_for_2d >= 0)
-		rmi4_data->sensor_max_y = bdata->max_y_for_2d;
+	//if (bdata->max_y_for_2d >= 0)
+	//	rmi4_data->sensor_max_y = bdata->max_y_for_2d;
 
 	synaptics_rmi4_set_params(rmi4_data);
 
