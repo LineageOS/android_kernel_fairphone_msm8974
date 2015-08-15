@@ -98,6 +98,7 @@ static int __init drv2603_motor_init(void)
 		return ret;
 	}
 	gpio_direction_output(DRV2603_VIBRATOR_EN, 0);
+	gpio_direction_input(DRV2603_VIBRATOR_PWM);
 	wake_lock_init(&vibdata.wklock,WAKE_LOCK_SUSPEND, "vibrator");
 	mutex_init(&vibdata.lock);
 	ret=timed_output_dev_register(&drv2603_motot_driver);
