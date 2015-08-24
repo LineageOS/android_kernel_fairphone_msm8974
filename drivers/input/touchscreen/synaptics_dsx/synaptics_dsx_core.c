@@ -2699,8 +2699,6 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	if (bdata->reset_gpio >= 0) {
-		gpio_set_value(bdata->reset_gpio, bdata->reset_on_state);
-		msleep(bdata->reset_active_ms);
 		gpio_set_value(bdata->reset_gpio, !bdata->reset_on_state);
 		msleep(bdata->reset_delay_ms);
 	}
