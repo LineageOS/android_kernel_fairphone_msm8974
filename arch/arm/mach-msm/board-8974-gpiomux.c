@@ -273,7 +273,7 @@ static struct gpiomux_setting lcd_en_sus_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
-
+/*
 static struct gpiomux_setting atmel_resout_sus_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_6MA,
@@ -297,7 +297,7 @@ static struct gpiomux_setting atmel_int_sus_cfg = {
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_UP,
 };
-
+*/
 static struct gpiomux_setting taiko_reset = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_6MA,
@@ -332,21 +332,21 @@ static struct msm_gpiomux_config hap_lvl_shft_config[] __initdata = {
 };
 
 static struct msm_gpiomux_config msm_touch_configs[] __initdata = {
-	{
-		.gpio      = 55,		/* TOUCH RESET */
+/*	{
+		.gpio      = 55,		// TOUCH RESET
 		.settings = {
 			[GPIOMUX_ACTIVE] = &atmel_resout_act_cfg,
 			[GPIOMUX_SUSPENDED] = &atmel_resout_sus_cfg,
 		},
 	},
 	{
-		.gpio      = 28,		/* TOUCH IRQ */
+		.gpio      = 28,		// TOUCH IRQ
 		.settings = {
 			[GPIOMUX_ACTIVE] = &atmel_int_act_cfg,
 			[GPIOMUX_SUSPENDED] = &atmel_int_sus_cfg,
 		},
 	},
-
+*/
 };
 
 static struct gpiomux_setting hsic_sus_cfg = {
