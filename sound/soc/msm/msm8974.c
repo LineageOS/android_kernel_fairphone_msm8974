@@ -1723,7 +1723,7 @@ void *def_taiko_mbhc_cal(void)
 	btn_low[1] = 80;
 	btn_high[1] = 260;
 	btn_low[2] = 260;
-	btn_high[2] = 450;
+	btn_high[2] = 500;
 #if 0
 	btn_low[3] = 105;
 	btn_high[3] = 148;
