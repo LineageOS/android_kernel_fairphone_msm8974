@@ -985,8 +985,11 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	u32 temp = bkl_lvl;
 	bool bl_notify_needed = false;
 
-	if ((((!mfd->panel_power_on && mfd->dcm_state != DCM_ENTER)
+	if (
+#ifndef CONFIG_LEDS_TRIGGER_BACKLIGHT
+		(((!mfd->panel_power_on && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->bl_updated) && !IS_CALIB_MODE_BL(mfd)) ||
+#endif
 		mfd->panel_info->cont_splash_enabled) {
 		mfd->unset_bl_level = bkl_lvl;
 		return;
