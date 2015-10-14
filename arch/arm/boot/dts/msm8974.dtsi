@@ -790,6 +790,11 @@
 		};
 	};
 
+        ti2603 {
+                compatible = "drv2603";
+	 	vdd-drv2603-supply = <&pm8941_l18>;
+        };
+
 	sound {
 		compatible = "qcom,msm8974-audio-taiko";
 		qcom,model = "msm8974-taiko-snd-card";
