@@ -3598,7 +3598,7 @@ static struct platform_driver synaptics_rmi4_driver = {
 	.remove = __devexit_p(synaptics_rmi4_remove),
 };
 
-int synaptics_rmi4_init(void)
+static int __init synaptics_rmi4_init(void)
 {
 	int retval;
 
@@ -3608,9 +3608,8 @@ int synaptics_rmi4_init(void)
 
 	return platform_driver_register(&synaptics_rmi4_driver);
 }
-EXPORT_SYMBOL(synaptics_rmi4_init);
 
-void synaptics_rmi4_exit(void)
+static void __exit synaptics_rmi4_exit(void)
 {
 	platform_driver_unregister(&synaptics_rmi4_driver);
 
@@ -3618,8 +3617,6 @@ void synaptics_rmi4_exit(void)
 
 	return;
 }
-
-EXPORT_SYMBOL(synaptics_rmi4_exit);
 
 module_init(synaptics_rmi4_init);
 module_exit(synaptics_rmi4_exit);
