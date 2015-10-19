@@ -428,7 +428,4 @@ static inline struct mdss_dsi_ctrl_pdata *mdss_dsi_get_ctrl_by_index(int ndx)
 
 	return ctrl_list[ndx];
 }
-
-int synaptics_rmi4_init(void);
-void synaptics_rmi4_exit(void);
 #endif /* MDSS_DSI_H */
