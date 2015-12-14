@@ -2038,7 +2038,7 @@ static int synaptics_rmi4_f1a_button_map(struct synaptics_rmi4_data *rmi4_data,
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Button map is missing in board file\n",
 				__func__);
-		//return -ENODEV;liuyan
+		//return -ENODEV;
 		return 0;
 	} else {
 		if (bdata->cap_button_map->nbuttons != f1a->max_count) {
