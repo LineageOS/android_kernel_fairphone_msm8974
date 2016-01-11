@@ -46,7 +46,8 @@
 			qcom,id = <4>;
 			linux,default-trigger = "battery-full";
 			qcom,start-idx = <1>;
-			qcom,duty-pcts = [00 64 00];
+			qcom,duty-pcts = [00 00 00 00 00 00 00 00 00 00 00 19 32 4B 64 64 32 19
+                                          00 00 00 00 00 00 00 00 00 00 00];
 			qcom,lut-flags = <3>;
 			qcom,pause-lo = <0>;
 			qcom,pause-hi = <0>;
@@ -62,9 +63,9 @@
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,id = <5>;
-			status = "disabled";
 			qcom,start-idx = <1>;
-			qcom,duty-pcts = [00 64 00];
+			qcom,duty-pcts = [00 00 00 00 00 00 00 00 00 00 00 19 32 4B 64 64 32 19
+                                          00 00 00 00 00 00 00 00 00 00 00];
 			qcom,lut-flags = <3>;
 			qcom,pause-lo = <0>;
 			qcom,pause-hi = <0>;
