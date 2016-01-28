@@ -25,7 +25,7 @@
 #include "xhci.h"
 
 #define VBUS_REG_CHECK_DELAY	(msecs_to_jiffies(1000))
-#define MAX_INVALID_CHRGR_RETRY 3
+#define MAX_INVALID_CHRGR_RETRY 1
 static int max_chgr_retry_count = MAX_INVALID_CHRGR_RETRY;
 module_param(max_chgr_retry_count, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_chgr_retry_count, "Max invalid charger retry count");
@@ -549,7 +549,7 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 	else if (dotg->charger->chg_type == DWC3_CDP_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_CDP;
 	else if (dotg->charger->chg_type == DWC3_DCP_CHARGER ||
-			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER)
+			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER || dotg->charger->chg_type == DWC3_FLOATED_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_DCP;
 	else
 		power_supply_type = POWER_SUPPLY_TYPE_UNKNOWN;
@@ -796,7 +796,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					 */
 					if (dotg->charger_retry_count ==
 						max_chgr_retry_count) {
-						dwc3_otg_set_power(phy, 0);
+						dwc3_otg_set_power(phy, DWC3_IDEV_CHG_MAX);
 						pm_runtime_put_sync(phy->dev);
 						break;
 					}
