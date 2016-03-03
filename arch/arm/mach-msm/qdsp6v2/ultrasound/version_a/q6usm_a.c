@@ -602,12 +602,12 @@ int q6usm_open_read(struct us_client *usc,
 	int rc = 0x00;
 	struct usm_stream_cmd_open_read open;
 
-	pr_debug("%s: session[%d]", __func__, usc->session);
-
 	if ((usc == NULL) || (usc->apr == NULL)) {
 		pr_err("%s: client or its apr is NULL\n", __func__);
 		return -EINVAL;
 	}
+
+	pr_debug("%s: session[%d]", __func__, usc->session);
 
 	q6usm_add_hdr(usc, &open.hdr, sizeof(open), true);
 	open.hdr.opcode = USM_STREAM_CMD_OPEN_READ;
@@ -848,12 +848,12 @@ int q6usm_open_write(struct us_client *usc,
 	uint32_t int_format = INVALID_FORMAT;
 	struct usm_stream_cmd_open_write open;
 
-	pr_debug("%s: session[%d]", __func__, usc->session);
-
 	if ((usc == NULL) || (usc->apr == NULL)) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		return -EINVAL;
 	}
+
+	pr_debug("%s: session[%d]", __func__, usc->session);
 
 	q6usm_add_hdr(usc, &open.hdr, sizeof(open), true);
 	open.hdr.opcode = USM_STREAM_CMD_OPEN_WRITE;
