@@ -2180,7 +2180,7 @@ static enum flash_area fwu_go_nogo(void)
 	}
 
 	flash_area = NONE;
-	flash_area = UI_FIRMWARE;
+
 exit:
 	if (flash_area == NONE) {
 		dev_info(rmi4_data->pdev->dev.parent,
