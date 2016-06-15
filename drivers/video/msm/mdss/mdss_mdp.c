@@ -652,7 +652,7 @@ int mdss_iommu_ctrl(int enable)
 	int rc = 0;
 
 	mutex_lock(&mdp_iommu_lock);
-	pr_debug("%pS: enable %d mdata->iommu_ref_cnt %d\n",
+	pr_debug("%pKS: enable %d mdata->iommu_ref_cnt %d\n",
 		__builtin_return_address(0), enable, mdata->iommu_ref_cnt);
 
 	if (enable) {
@@ -1522,7 +1522,7 @@ static int mdss_mdp_parse_bootarg(struct platform_device *pdev)
 	cmd_len = strlen(cmd_line);
 	disp_idx = strnstr(cmd_line, "mdss_mdp.panel=", cmd_len);
 	if (!disp_idx) {
-		pr_err("%s:%d:cmdline panel not set disp_idx=[%p]\n",
+		pr_err("%s:%d:cmdline panel not set disp_idx=[%pK]\n",
 				__func__, __LINE__, disp_idx);
 		memset(panel_name, 0x00, MDSS_MAX_PANEL_LEN);
 		*intf_type = MDSS_PANEL_INTF_INVALID;
@@ -1542,7 +1542,7 @@ static int mdss_mdp_parse_bootarg(struct platform_device *pdev)
 	}
 
 	if (end_idx <= disp_idx) {
-		pr_err("%s:%d:cmdline pan incorrect end=[%p] disp=[%p]\n",
+		pr_err("%s:%d:cmdline pan incorrect end=[%pK] disp=[%pK]\n",
 			__func__, __LINE__, end_idx, disp_idx);
 		memset(panel_name, 0x00, MDSS_MAX_PANEL_LEN);
 		*intf_type = MDSS_PANEL_INTF_INVALID;

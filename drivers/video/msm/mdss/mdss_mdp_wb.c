@@ -521,16 +521,16 @@ static int mdss_mdp_wb_queue(struct msm_fb_data_type *mfd,
 
 		switch (node->state) {
 		case IN_FREE_QUEUE:
-			pr_err("node 0x%pa was already queueued before\n",
+			pr_err("node 0x%pKa was already queueued before\n",
 					&buf->addr);
 			ret = -EINVAL;
 			break;
 		case IN_BUSY_QUEUE:
-			pr_err("node 0x%pa still in busy state\n", &buf->addr);
+			pr_err("node 0x%pKa still in busy state\n", &buf->addr);
 			ret = -EBUSY;
 			break;
 		case WB_BUFFER_READY:
-			pr_debug("node 0x%pa re-queueded without dequeue\n",
+			pr_debug("node 0x%pKa re-queueded without dequeue\n",
 				&buf->addr);
 			list_del(&node->active_entry);
 		case WITH_CLIENT:
@@ -539,7 +539,7 @@ static int mdss_mdp_wb_queue(struct msm_fb_data_type *mfd,
 			node->state = IN_FREE_QUEUE;
 			break;
 		default:
-			pr_err("Invalid node 0x%pa state %d\n",
+			pr_err("Invalid node 0x%pKa state %d\n",
 				&buf->addr, node->state);
 			ret = -EINVAL;
 			break;
