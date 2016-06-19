@@ -50,6 +50,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h> /* event notifications */
 #include "hci_uart.h"
+#include <linux/jiffies.h>
 
 #define BT_SLEEP_DBG
 #ifndef BT_SLEEP_DBG
@@ -159,7 +160,8 @@ void bluesleep_sleep_wakeup(void)
 	if (test_bit(BT_ASLEEP, &flags)) {
 		BT_DBG("waking up...");
 		/* Start the timer */
-		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
+		mod_timer(&tx_timer,
+		          jiffies + msecs_to_jiffies(TX_TIMER_INTERVAL * 1000));
 		gpio_set_value(bsi->ext_wake, 0);
 		clear_bit(BT_ASLEEP, &flags);
 		/*Activating UART */
@@ -187,7 +189,8 @@ static void bluesleep_sleep_work(struct work_struct *work)
 			hsuart_power(0);
 		} else {
 
-		  mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
+			mod_timer(&tx_timer,
+		                  jiffies + msecs_to_jiffies(TX_TIMER_INTERVAL * 1000));
 			return;
 		}
 	} else {
@@ -294,7 +297,8 @@ static void bluesleep_tx_timer_expire(unsigned long data)
 		bluesleep_tx_idle();
 	} else {
 		BT_DBG("Tx data during last period");
-		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
+		mod_timer(&tx_timer,
+		          jiffies + msecs_to_jiffies(TX_TIMER_INTERVAL * 1000));
 	}
 
 	/* clear the incoming data flag */
@@ -342,7 +346,8 @@ static int bluesleep_start(void)
 
 	/* start the timer */
 
-	mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
+	mod_timer(&tx_timer,
+	          jiffies + msecs_to_jiffies(TX_TIMER_INTERVAL * 1000));
 
 	/* assert BT_WAKE */
 	gpio_set_value(bsi->ext_wake, 0);
