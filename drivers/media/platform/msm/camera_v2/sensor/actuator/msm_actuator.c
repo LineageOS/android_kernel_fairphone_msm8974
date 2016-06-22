@@ -386,7 +386,7 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 	CDBG("Enter\n");
 
 	/* validate the actuator state */
-	if (a_ctrl->actuator_state != ACTUATOR_POWER_UP) {
+	if (a_ctrl->actuator_state == ACTUATOR_POWER_UP) {
 		pr_err("%s:%d invalid actuator_state %d\n"
 			, __func__, __LINE__, a_ctrl->actuator_state);
 		return -EINVAL;
