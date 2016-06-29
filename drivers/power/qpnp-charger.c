@@ -5863,6 +5863,7 @@ static int qpnp_chg_suspend(struct device *dev)
 	struct qpnp_chg_chip *chip = dev_get_drvdata(dev);
 	int rc = 0;
 
+        qpnp_chg_regulator_batfet_set(chip, 1);
 	if (chip->bat_if_base) {
 		rc = qpnp_chg_masked_write(chip,
 			chip->bat_if_base + BAT_IF_VREF_BAT_THM_CTRL,
