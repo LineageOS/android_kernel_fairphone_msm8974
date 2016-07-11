@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
+#include <linux/sysctl.h>
 
 #define PMIC_VER_8941           0x01
 #define PMIC_VERSION_REG        0x0105
@@ -112,6 +113,50 @@
 #define QPNP_PON_MAX_DBC_US			(USEC_PER_SEC * 2)
 
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
+
+
+static int _p_on_reason  = -1;
+static int _p_off_reason = -1;
+static struct ctl_table_header *sysctl_header;
+
+/* two integer items (files) */
+static ctl_table on_off_reasons_table[] = {
+  {
+		.procname        = "pon_reason",
+    .data            = &_p_on_reason,
+    .maxlen          = sizeof(int),
+    .mode            = 0444,
+		.proc_handler = proc_dointvec,
+	},
+	{
+		.procname        = "poff_reason",
+		.data            = &_p_off_reason,
+		.maxlen          = sizeof(int),
+		.mode            = 0444,
+		.proc_handler = proc_dointvec,
+	},
+	{}
+};
+
+static ctl_table qpnp_on_off_dir[] = {
+    {
+        .procname        = "qpnp-power-on",
+        .mode            = 0555,
+        .child           = on_off_reasons_table,
+    },
+    { }
+};
+
+
+static void __init init_sysctl(void)
+{
+    sysctl_header = register_sysctl_table(qpnp_on_off_dir);
+}
+
+static void __exit cleanup_sysctl(void)
+{
+    unregister_sysctl_table(sysctl_header);
+}
 
 enum pon_type {
 	PON_KPDPWR,
@@ -1163,6 +1208,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 
 	boot_reason = ffs(pon_sts);
 	index = ffs(pon_sts) - 1;
+	_p_on_reason = index;
 	cold_boot = !qpnp_pon_is_warm_reset();
 	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
 		dev_info(&pon->spmi->dev,
@@ -1184,6 +1230,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	}
 	poff_sts = buf[0] | (buf[1] << 8);
 	index = ffs(poff_sts) - 1;
+	_p_off_reason = index;
 	if (index >= ARRAY_SIZE(qpnp_poff_reason) || index < 0)
 		dev_info(&pon->spmi->dev,
 				"PMIC@SID%d: Unknown power-off reason\n",
@@ -1310,12 +1357,14 @@ static struct spmi_driver qpnp_pon_driver = {
 
 static int __init qpnp_pon_init(void)
 {
+	init_sysctl();
 	return spmi_driver_register(&qpnp_pon_driver);
 }
 module_init(qpnp_pon_init);
 
 static void __exit qpnp_pon_exit(void)
 {
+	cleanup_sysctl();
 	return spmi_driver_unregister(&qpnp_pon_driver);
 }
 module_exit(qpnp_pon_exit);
