@@ -3418,11 +3418,11 @@ static void synaptics_rmi4_sensor_wake(struct synaptics_rmi4_data *rmi4_data)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to wake from sleep mode\n",
 				__func__);
-                 /*gpio_set_value(SYNAPTICS_RMI4_F55,0);
+                 gpio_set_value(SYNAPTICS_RMI4_F55,0);
                  msleep(20);
                  gpio_set_value(SYNAPTICS_RMI4_F55,1);
-                 msleep(50);*/
-                 synaptics_rmi4_reinit_device(rmi4_data);
+                 msleep(50);
+                 //synaptics_rmi4_reinit_device(rmi4_data);
                  dev_info(rmi4_data->pdev->dev.parent,"Reset synaptics");
 		return;
 	}
@@ -3438,11 +3438,11 @@ static void synaptics_rmi4_sensor_wake(struct synaptics_rmi4_data *rmi4_data)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to wake from sleep mode\n",
 				__func__);
-                 /*gpio_set_value(SYNAPTICS_RMI4_F55,0);
-                 msleep(100);
+                 gpio_set_value(SYNAPTICS_RMI4_F55,0);
+                 msleep(20);
                  gpio_set_value(SYNAPTICS_RMI4_F55,1);
-                 msleep(200);*/
-                 synaptics_rmi4_reinit_device(rmi4_data);
+                 msleep(50);
+                 //synaptics_rmi4_reinit_device(rmi4_data);
                  dev_info(rmi4_data->pdev->dev.parent,"Reset synaptics");
 		return;
 	}

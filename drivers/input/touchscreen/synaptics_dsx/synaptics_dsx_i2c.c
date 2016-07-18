@@ -201,7 +201,7 @@ static int synaptics_rmi4_i2c_set_page(struct synaptics_rmi4_data *rmi4_data,
 		for (retry = 0; retry < SYN_I2C_RETRY_TIMES; retry++) {
 			retval = i2c_master_send(i2c, buf, PAGE_SELECT_LEN);
                         //if retry > 6,  reset GPIO
-                        if(retry > 6 && retval != PAGE_SELECT_LEN) {
+                        if(retry == 6 && retval != PAGE_SELECT_LEN) {
                                 dev_info(rmi4_data->pdev->dev.parent,"Reset GPIO");
                                 gpio_set_value(SYNAPTICS_RMI4_F55,0);
                                 msleep(20);
