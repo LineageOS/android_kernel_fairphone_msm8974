@@ -1681,10 +1681,11 @@ static int snd_timer_user_params(struct file *file,
 	tu->qhead = tu->qtail = tu->qused = 0;
 	if (tu->timeri->flags & SNDRV_TIMER_IFLG_EARLY_EVENT) {
 		if (tu->tread) {
-			struct snd_timer_tread tread;
-			tread.event = SNDRV_TIMER_EVENT_EARLY;
-			tread.tstamp.tv_sec = 0;
-			tread.tstamp.tv_nsec = 0;
+            struct snd_timer_tread tread;
+            memset(&tread, 0, sizeof(tread));
+            tread.event = SNDRV_TIMER_EVENT_EARLY;
+            tread.tstamp.tv_sec = 0;
+            tread.tstamp.tv_nsec = 0;
 			tread.val = 0;
 			snd_timer_user_append_to_tqueue(tu, &tread);
 		} else {
