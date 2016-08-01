@@ -4200,7 +4200,14 @@ static int iris_vidioc_s_ctrl(struct file *file, void *priv,
 		break;
 	case V4L2_CID_PRIVATE_IRIS_RIVA_ACCS_LEN:
 		if (is_valid_peek_len(ctrl->value)) {
+		if ((ctrl->value > 0) &&
+			(ctrl->value <= MAX_RIVA_PEEK_RSP_SIZE)) {
 			radio->riva_data_req.cmd_params.length = ctrl->value;
+		} else {
+			FMDERR("Length %d is more than the buffer size %d\n",
+			ctrl->value, MAX_RIVA_PEEK_RSP_SIZE);
+			retval = -EINVAL;
+		}			
 		} else {
 			retval = -EINVAL;
 			FMDERR("%s: riva access len is not valid\n", __func__);
