@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/time.h>
 #include <linux/kmemleak.h>
+#include <linux/mutex.h>
 #include <asm/mach-types.h>
 #include <sound/apr_audio.h>
 #include <mach/qdsp6v2/usf.h>
@@ -131,6 +132,8 @@ struct usf_type {
 	uint16_t conflicting_event_filters;
 	/* The requested buttons bitmap */
 	uint16_t req_buttons_bitmap;
+	/* Mutex for exclusive operations (all public APIs) */
+	struct mutex mutex;
 };
 
 struct usf_input_dev_type {
@@ -1311,8 +1314,21 @@ static int usf_set_stream_param(struct usf_xx_type *usf_xx,
 {
 	struct us_stream_param_type set_stream_param;
 	struct us_client *usc = usf_xx->usc;
-	struct us_port_data *port = &usc->port[dir];
+	struct us_port_data *port;
 	int rc = 0;
+
+	if (usc == NULL) {
+		pr_err("%s: usc is null\n",
+			__func__);
+		return -EFAULT;
+	}
+
+	port = &usc->port[dir];
+	if (port == NULL) {
+		pr_err("%s: port is null\n",
+			__func__);
+		return -EFAULT;
+	}
 
 	if (port->param_buf == NULL) {
 		pr_err("%s: parameter buffer is null\n",
@@ -1428,10 +1444,12 @@ static int usf_get_stream_param(struct usf_xx_type *usf_xx,
 	return rc;
 } /* usf_get_stream_param */
 
-static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long __usf_ioctl(struct usf_type *usf,
+		unsigned int cmd,
+		unsigned long arg)
 {
+
 	int rc = 0;
-	struct usf_type *usf = file->private_data;
 	struct usf_xx_type *usf_xx = NULL;
 
 	switch (cmd) {
@@ -1594,6 +1612,18 @@ static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		release_xx(usf_xx);
 
 	return rc;
+} /* __usf_ioctl */
+
+static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct usf_type *usf = file->private_data;
+	int rc = 0;
+
+	mutex_lock(&usf->mutex);
+	rc = __usf_ioctl(usf, cmd, arg);
+	mutex_unlock(&usf->mutex);
+
+	return rc;
 } /* usf_ioctl */
 
 static int usf_mmap(struct file *file, struct vm_area_struct *vms)
@@ -1601,13 +1631,17 @@ static int usf_mmap(struct file *file, struct vm_area_struct *vms)
 	struct usf_type *usf = file->private_data;
 	int dir = OUT;
 	struct usf_xx_type *usf_xx = &usf->usf_tx;
+	int rc = 0;
 
+	mutex_lock(&usf->mutex);
 	if (vms->vm_flags & USF_VM_WRITE) { /* RX buf mapping */
 		dir = IN;
 		usf_xx = &usf->usf_rx;
 	}
+	rc = q6usm_get_virtual_address(dir, usf_xx->usc, vms);
+	mutex_unlock(&usf->mutex);
 
-	return q6usm_get_virtual_address(dir, usf_xx->usc, vms);
+	return rc;
 }
 
 static uint16_t add_opened_dev(int minor)
@@ -1659,6 +1693,8 @@ static int usf_open(struct inode *inode, struct file *file)
 	usf->usf_tx.us_detect_type = USF_US_DETECT_UNDEF;
 	usf->usf_rx.us_detect_type = USF_US_DETECT_UNDEF;
 
+	mutex_init(&usf->mutex);
+
 	pr_debug("%s:usf in open\n", __func__);
 	return 0;
 }
@@ -1669,6 +1705,7 @@ static int usf_release(struct inode *inode, struct file *file)
 
 	pr_debug("%s: release entry\n", __func__);
 
+	mutex_lock(&usf->mutex);
 	usf_release_input(usf);
 
 	usf_disable(&usf->usf_tx);
@@ -1676,6 +1713,8 @@ static int usf_release(struct inode *inode, struct file *file)
 
 	s_opened_devs[usf->dev_ind] = 0;
 
+	mutex_unlock(&usf->mutex);
+	mutex_destroy(&usf->mutex);
 	kfree(usf);
 	pr_debug("%s: release exit\n", __func__);
 	return 0;
