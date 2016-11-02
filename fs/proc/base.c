@@ -831,6 +831,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 		goto out_free;
 
 	ret = 0;
+	
+	if (!mm->env_end)
+		goto out_free;
+
 	while (count > 0) {
 		int this_len, retval, max_len;
 
