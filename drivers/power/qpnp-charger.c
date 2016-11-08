@@ -82,6 +82,9 @@
 #define CHGR_CHG_WDOG_PET			0x64
 #define CHGR_CHG_WDOG_EN			0x65
 #define CHGR_IR_DROP_COMPEN			0x67
+#ifdef CONFIG_TCMD
+#define CHGR_USB_PRIORITY_SEL                  0x40
+#endif
 #define CHGR_I_MAX_REG			0x44
 #define CHGR_USB_USB_SUSP			0x47
 #define CHGR_USB_USB_OTG_CTL			0x48
@@ -171,7 +174,9 @@
 #define OCP_THR_500_MA			0x01
 #define OCP_THR_200_MA			0x00
 #define DC_HIGHER_PRIORITY		BIT(7)
-
+#ifdef CONFIG_TCMD
+#define CHG_PTH_PRIORITY_SEL            BIT(7)
+#endif
 /* Interrupt definitions */
 /* smbb_chg_interrupts */
 #define CHG_DONE_IRQ			BIT(7)
@@ -517,6 +522,10 @@ static struct kernel_param_ops ext_ovp_en_ops = {
 };
 module_param_cb(ext_ovp_isns_online, &ext_ovp_en_ops,
 		&ext_ovp_isns_online, 0664);
+
+#ifdef CONFIG_TCMD
+static struct qpnp_chg_chip *the_chip;
+#endif
 
 static inline int
 get_bpd(const char *name)
@@ -3054,6 +3063,199 @@ qpnp_chg_vddsafe_set(struct qpnp_chg_chip *chip, int voltage)
 		chip->chgr_base + CHGR_VDD_SAFE, 1);
 }
 
+#ifdef CONFIG_TCMD
+int qpnp_disable_source_current(bool disable)
+{
+	int ret =-1;
+	if(!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+	if(disable)
+	{
+		ret = qpnp_chg_charge_en(the_chip, !disable);
+		if(ret)
+		{
+			printk("TCMD : qpnp_chg_charge_en failed. result = %d", ret);
+			return ret;
+		}
+		else
+		{
+			ret = qpnp_chg_force_run_on_batt(the_chip, true);
+			if(ret)
+				printk("TCMD : pnp_chg_force_run_on_batt failed. result = %d", ret);
+		}
+	}
+	else
+	{
+		ret = qpnp_chg_force_run_on_batt(the_chip, false);
+		if(ret)
+		{
+			printk("TCMD : pnp_chg_force_run_on_batt failed. result = %d", ret);
+			return ret;
+		}
+		else
+		{
+			ret = qpnp_chg_charge_en(the_chip, !disable);
+			if(ret)
+				printk("TCMD : qpnp_chg_charge_en failed. result = %d", ret);
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_disable_source_current);
+
+int qpnp_disable_usb_charging(bool disable)
+{
+	int ret =-1;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+
+	ret =  qpnp_chg_usb_suspend_enable(the_chip, disable);
+	if(disable)
+	{
+		printk("TCMD : Disable USB charging\n");
+		ret = qpnp_chg_iusbmax_set(the_chip, QPNP_CHG_I_MAX_MIN_100);
+	}
+	else
+	{
+		printk("TCMD : Enable USB charging\n");
+		ret = qpnp_chg_iusbmax_set(the_chip, QPNP_CHG_I_MAX_MAX_MA);
+		if(ret)
+		{
+			printk("TCMD : FAILED to set MAX USB current !\n");
+		}
+		else
+		{
+			ret = qpnp_disable_source_current(false);
+			if(ret)
+			{
+				printk("TCMD : FAILED to enable source current !\n");
+			}
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_disable_usb_charging);
+
+int qpnp_chg_priority(int enable)
+{
+       int rc = 0,rc1 = 0;
+       u8 value;
+       if (!the_chip)
+       {
+       pr_err("the_chip is NULL\n");
+        return -EINVAL;
+       }
+       printk("TCMD : setting %s priority\n", enable ? "DC_IN" : "USB_IN");
+       /*This bit to change priority of wireless charging path and USB charging path*/
+       rc = qpnp_chg_masked_write(the_chip,
+                        the_chip->usb_chgpth_base + CHGR_USB_PRIORITY_SEL,
+                        CHG_PTH_PRIORITY_SEL,
+                        enable ? CHG_PTH_PRIORITY_SEL : 0, 1);
+       if(rc){
+               printk("TCMD :failed to set %s priority\n", enable ? "DC_IN" : "USB_IN");
+       }
+
+       rc1 = qpnp_chg_read(the_chip, &value, the_chip->usb_chgpth_base + CHGR_USB_PRIORITY_SEL, 1);
+       if (rc1) {
+       printk("TCMD :failed to read 0x%02x value: %d\n",the_chip->usb_chgpth_base + CHGR_USB_PRIORITY_SEL,rc1);
+       return rc1;
+       }
+       printk("TCMD :0x%02x value = 0x%02x\n",the_chip->usb_chgpth_base + CHGR_USB_PRIORITY_SEL,value);
+
+       return rc;
+}
+
+EXPORT_SYMBOL(qpnp_chg_priority);
+
+int qpnp_set_max_battery_charge_current(bool enable)
+{
+	int ret = -1;
+	unsigned int chg_current = 0;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+
+	chg_current = (enable) ? 850 : the_chip->warm_bat_chg_ma;
+
+	ret =  qpnp_chg_ibatmax_set(the_chip, chg_current);
+	if(ret < 0) {
+                return ret;
+                }
+	ret = qpnp_chg_iusbmax_set(the_chip, 1500);
+	return ret;
+}
+
+EXPORT_SYMBOL(qpnp_set_max_battery_charge_current);
+
+int qpnp_get_usb_max_current(int* usb_max_current){
+	if (!the_chip)
+        {
+		pr_err("called before init\n");
+		return -EINVAL;
+        }
+
+	*usb_max_current = qpnp_chg_usb_iusbmax_get(the_chip);
+	return 0;
+	}
+
+EXPORT_SYMBOL(qpnp_get_usb_max_current);
+
+int qpnp_get_bat_max_current(int* bat_max_current){
+	int max_current, rc = -1;
+	if (!the_chip)
+	{
+		pr_err("called before init\n");
+		return -EINVAL;
+        }
+
+	rc = qpnp_chg_ibatmax_get(the_chip,&max_current);
+	*bat_max_current = max_current;
+
+	return rc;
+        }
+
+EXPORT_SYMBOL(qpnp_get_bat_max_current);
+
+int qpnp_set_usb_max_current(int usb_max_current){
+	int ret = -1;
+        if (!the_chip)
+        {
+                pr_err("called before init\n");
+                return -EINVAL;
+        }
+
+	ret = qpnp_chg_iusbmax_set(the_chip, usb_max_current);
+        return ret;
+        }
+
+EXPORT_SYMBOL(qpnp_set_usb_max_current);
+
+int qpnp_set_bat_max_current(int bat_max_current){
+        int rc = -1;
+        if (!the_chip)
+        {
+                pr_err("called before init\n");
+                return -EINVAL;
+        }
+
+        rc = qpnp_chg_ibatmax_set(the_chip, bat_max_current);
+
+        return rc;
+	}
+
+EXPORT_SYMBOL(qpnp_set_bat_max_current);
+#endif
+
 #define IBAT_TRIM_TGT_MA		500
 #define IBAT_TRIM_OFFSET_MASK		0x7F
 #define IBAT_TRIM_GOOD_BIT		BIT(7)
@@ -5550,6 +5752,10 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		goto unregister_dc_psy;
 	}
 
+#ifdef CONFIG_TCMD
+	the_chip = chip;
+#endif
+
 	chip->usb_trim_default = qpnp_chg_iusb_trim_get(chip);
 	qpnp_chg_charge_en(chip, !chip->charging_disabled);
 	qpnp_chg_force_run_on_batt(chip, chip->charging_disabled);
@@ -5658,6 +5864,7 @@ static int qpnp_chg_suspend(struct device *dev)
 	struct qpnp_chg_chip *chip = dev_get_drvdata(dev);
 	int rc = 0;
 
+        qpnp_chg_regulator_batfet_set(chip, 1);
 	if (chip->bat_if_base) {
 		rc = qpnp_chg_masked_write(chip,
 			chip->bat_if_base + BAT_IF_VREF_BAT_THM_CTRL,

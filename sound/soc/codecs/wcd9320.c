@@ -905,7 +905,7 @@ static int taiko_config_gain_compander(struct snd_soc_codec *codec,
 	switch (comp) {
 	case COMPANDER_0:
 		snd_soc_update_bits(codec, TAIKO_A_SPKR_DRV_GAIN,
-				    1 << 2, !enable << 2);
+				    1 << 2, !0 << 2);
 		break;
 	case COMPANDER_1:
 		snd_soc_update_bits(codec, TAIKO_A_RX_HPH_L_GAIN,

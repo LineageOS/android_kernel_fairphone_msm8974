@@ -40,6 +40,9 @@ struct qpnp_coincell {
 
 static const int qpnp_rset_map[] = {2100, 1700, 1200, 800};
 static const int qpnp_vset_map[] = {2500, 3200, 3100, 3000};
+#ifdef CONFIG_TCMD
+static struct qpnp_coincell *coincell_chip;
+#endif
 
 static int qpnp_coincell_set_resistance(struct qpnp_coincell *chip, int rset)
 {
@@ -65,6 +68,17 @@ static int qpnp_coincell_set_resistance(struct qpnp_coincell *chip, int rset)
 	return rc;
 }
 
+#ifdef CONFIG_TCMD
+int tcmd_qpnp_coincell_set_resistance(int rset)
+{
+	int rc = -1;
+	printk("TCMD: tcmd_qpnp_coincell_set_resistance in\n");
+	rc = qpnp_coincell_set_resistance(coincell_chip,rset);
+	printk("TCMD: tcmd_qpnp_coincell_set_resistance out with value = %d\n",rc);
+	return rc;
+}
+#endif
+
 static int qpnp_coincell_set_voltage(struct qpnp_coincell *chip, int vset)
 {
 	int i, rc;
@@ -89,6 +103,18 @@ static int qpnp_coincell_set_voltage(struct qpnp_coincell *chip, int vset)
 	return rc;
 }
 
+#ifdef CONFIG_TCMD
+int tcmd_qpnp_coincell_set_voltage(int vset)
+{
+	int rc = -1;
+	printk("TCMD: tcmd_qpnp_coincell_set_voltage in\n");
+	printk("TCMD: vset = %d", vset);
+	rc = qpnp_coincell_set_voltage(coincell_chip,vset);
+	printk("TCMD: qpnp_coincell_set_voltage out with rc = %d\n", rc);
+	return rc;
+}
+#endif
+
 static int qpnp_coincell_set_charge(struct qpnp_coincell *chip, bool enabled)
 {
 	int rc;
@@ -103,6 +129,17 @@ static int qpnp_coincell_set_charge(struct qpnp_coincell *chip, bool enabled)
 
 	return rc;
 }
+
+#ifdef CONFIG_TCMD
+int tcmd_qpnp_coincell_set_charger(bool enabled)
+{
+	int rc = -1;
+	printk("TCMD: tcmd_qpnp_coincell_set_charger in\n");
+	rc = qpnp_coincell_set_charge(coincell_chip,enabled);
+	printk("TCMD: tcmd_qpnp_coincell_set_charger out with rc = %d\n", rc);
+	return rc;
+}
+#endif
 
 static void qpnp_coincell_charger_show_state(struct qpnp_coincell *chip)
 {
@@ -218,7 +255,9 @@ static int qpnp_coincell_probe(struct spmi_device *spmi)
 	}
 
 	qpnp_coincell_charger_show_state(chip);
-
+#ifdef CONFIG_TCMD
+	coincell_chip =chip;
+#endif
 	return 0;
 }
 

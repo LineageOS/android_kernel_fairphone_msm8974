@@ -292,6 +292,10 @@
 		compatible = "qcom,msm-wfd";
 	};
 
+	qcom,ram-console{
+		compatible = "ram-console";
+	};
+
 	serial@f991f000 {
 		compatible = "qcom,msm-lsuart-v14";
 		reg = <0xf991f000 0x1000>;
@@ -824,6 +828,13 @@
 			qcom,cdc-vddcx-2-voltage = <1225000 1225000>;
 			qcom,cdc-vddcx-2-current = <10000>;
 
+			/* If boot isn't available, vph_pwr_vreg can be used instead */
+			cdc-vdd-spkdrv-supply = <&pm8941_boost>;
+			qcom,cdc-vdd-spkdrv-voltage = <5000000 5000000>;
+			qcom,cdc-vdd-spkdrv-current = <1250000>;
+
+			qcom,cdc-on-demand-supplies = "cdc-vdd-spkdrv";
+
 			qcom,cdc-static-supplies = "cdc-vdd-buck",
 						   "cdc-vdd-tx-h",
 						   "cdc-vdd-rx-h",
@@ -834,7 +845,7 @@
 
 			qcom,cdc-micbias-ldoh-v = <0x3>;
 			qcom,cdc-micbias-cfilt1-mv = <1800>;
-			qcom,cdc-micbias-cfilt2-mv = <2700>;
+			qcom,cdc-micbias-cfilt2-mv = <2150>;
 			qcom,cdc-micbias-cfilt3-mv = <2700>;
 			qcom,cdc-micbias1-cfilt-sel = <0x0>;
 			qcom,cdc-micbias2-cfilt-sel = <0x1>;
@@ -846,6 +857,11 @@
 			qcom,cdc-dmic-sample-rate = <4800000>;
 		};
 	};
+
+        ti2603 {
+                compatible = "drv2603";
+	 	vdd-drv2603-supply = <&pm8941_l18>;
+        };
 
 	sound {
 		compatible = "qcom,msm8974-audio-taiko";
@@ -864,12 +880,12 @@
 			"RX_BIAS", "MCLK",
 			"LDO_H", "MCLK",
 			"AIF4 MAD", "MCLK",
-			"AMIC1", "MIC BIAS1 Internal1",
-			"MIC BIAS1 Internal1", "Handset Mic",
+			"AMIC1", "MIC BIAS1 External",
+			"MIC BIAS1 External", "Handset Mic",
 			"AMIC2", "MIC BIAS2 External",
 			"MIC BIAS2 External", "Headset Mic",
-			"AMIC3", "MIC BIAS2 External",
-			"MIC BIAS2 External", "ANCRight Headset Mic",
+			"AMIC3", "MIC BIAS1 External",
+			"MIC BIAS1 External", "Handset Mic",
 			"AMIC4", "MIC BIAS2 External",
 			"MIC BIAS2 External", "ANCLeft Headset Mic",
 			"DMIC1", "MIC BIAS1 External",
@@ -1698,7 +1714,7 @@
 
 	ehci: qcom,ehci-host@f9a55000 {
 		compatible = "qcom,ehci-host";
-		status = "disabled";
+		status = "ok";
 		reg = <0xf9a55000 0x400>;
 		interrupts = <0 134 0>, <0 140 0>;
 		interrupt-names = "core_irq", "async_irq";

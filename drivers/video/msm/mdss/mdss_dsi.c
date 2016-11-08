@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+#include <linux/input/synaptics_dsx.h>
 
 #include "mdss.h"
 #include "mdss_panel.h"
@@ -86,6 +87,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 					pr_err("Disable vregs failed\n");
 				goto error;
 			}
+
+			if (synaptics_touch_bdata && (synaptics_touch_bdata->reset_gpio >= 0)) {
+					gpio_set_value(synaptics_touch_bdata->reset_gpio, !synaptics_touch_bdata->reset_on_state);
+					msleep(synaptics_touch_bdata->reset_delay_ms);
+			}
 		}
 	} else {
 		ret = mdss_dsi_panel_reset(pdata, 0);
@@ -94,6 +100,12 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 					__func__, ret);
 			goto error;
 		}
+
+                if (synaptics_touch_bdata && (synaptics_touch_bdata->reset_gpio >= 0)) {
+		        gpio_set_value(synaptics_touch_bdata->reset_gpio, synaptics_touch_bdata->reset_on_state);
+                        msleep(synaptics_touch_bdata->reset_active_ms);
+		}
+
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
 			ctrl_pdata->power_data.num_vreg, 0);
@@ -1171,6 +1183,8 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		dsi_pan_node = of_find_node_by_name(mdss_node,
 						    panel_name);
+//		dsi_pan_node = of_find_node_by_name(mdss_node,
+//						    (const char*)"qcom,mdss_dsi_otm1902b_1080p_cmd");
 		if (!dsi_pan_node) {
 			pr_err("%s: invalid pan node, selecting prim panel\n",
 			       __func__);

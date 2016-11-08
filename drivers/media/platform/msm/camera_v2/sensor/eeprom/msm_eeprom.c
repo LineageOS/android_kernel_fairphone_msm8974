@@ -302,7 +302,7 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 				emap[j].page.data, emap[j].page.data_t);
 				msleep(emap[j].page.delay);
 			if (rc < 0) {
-				pr_err("%s: page write failed\n", __func__);
+				pr_err("%s: j = %d page write failed\n", __func__, j);
 				return rc;
 			}
 		}

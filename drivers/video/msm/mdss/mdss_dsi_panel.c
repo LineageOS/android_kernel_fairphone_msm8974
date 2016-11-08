@@ -242,9 +242,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			return rc;
 		}
 		if (!pinfo->panel_power_on) {
-			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio)){
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
-
+				usleep(12000);
+			}
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 				gpio_set_value((ctrl_pdata->rst_gpio),
 					pdata->panel_info.rst_seq[i]);

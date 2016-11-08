@@ -16,7 +16,7 @@
 		status = "okay";
 		qcom,rgb_0 {
 			label = "rgb";
-			linux,name = "led:rgb_red";
+			linux,name = "red";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <6>;
 			qcom,pwm-us = <1000>;
@@ -24,30 +24,53 @@
 			qcom,default-state = "off";
 			qcom,id = <3>;
 			linux,default-trigger =
-				"battery-charging";
+				"none";
+			qcom,start-idx = <1>;
+			qcom,duty-pcts = [00 00 00 00 00 00 00 00 00 00 00 19 32 4B 64 64 32 19 
+					  00 00 00 00 00 00 00 00 00 00 00];
+			qcom,lut-flags = <3>;
+			qcom,pause-lo = <0>;
+			qcom,pause-hi = <0>;
+			qcom,ramp-step-ms = <255>;
+			qcom,use-blink;
 		};
 
 		qcom,rgb_1 {
 			label = "rgb";
-			linux,name = "led:rgb_green";
+			linux,name = "green";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <5>;
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,default-state = "off";
 			qcom,id = <4>;
-			linux,default-trigger = "battery-full";
+			linux,default-trigger = "none";
+			qcom,start-idx = <1>;
+			qcom,duty-pcts = [00 00 00 00 00 00 00 00 00 00 00 19 32 4B 64 64 32 19
+                                          00 00 00 00 00 00 00 00 00 00 00];
+			qcom,lut-flags = <3>;
+			qcom,pause-lo = <0>;
+			qcom,pause-hi = <0>;
+			qcom,ramp-step-ms = <255>;
+			qcom,use-blink;
 		};
 
 		qcom,rgb_2 {
 			label = "rgb";
-			linux,name = "led:rgb_blue";
+			linux,name = "blue";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <4>;
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,id = <5>;
-			status = "disabled";
+			qcom,start-idx = <1>;
+			qcom,duty-pcts = [00 00 00 00 00 00 00 00 00 00 00 19 32 4B 64 64 32 19
+                                          00 00 00 00 00 00 00 00 00 00 00];
+			qcom,lut-flags = <3>;
+			qcom,pause-lo = <0>;
+			qcom,pause-hi = <0>;
+			qcom,ramp-step-ms = <255>;
+			qcom,use-blink;
 		};
 	};
 
@@ -74,7 +97,7 @@
 				"flash0_trigger";
 			qcom,id = <1>;
 			linux,name = "led:flash_0";
-			qcom,current = <625>;
+			qcom,current = <500>;
 		};
 
 		pm8941_flash1: qcom,flash_1 {
@@ -90,7 +113,7 @@
 			label = "flash";
 			qcom,id = <2>;
 			linux,name = "led:flash_1";
-			qcom,current = <625>;
+			qcom,current = <500>;
 		};
 
 		pm8941_torch: qcom,flash_torch {
@@ -103,7 +126,7 @@
 			label = "flash";
 			qcom,id = <2>;
 			linux,name = "led:flash_torch";
-			qcom,current = <200>;
+			qcom,current = <35>;
 			qcom,torch-enable;
 		};
 	};
