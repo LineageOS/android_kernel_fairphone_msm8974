@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -497,7 +497,7 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 	payload = data->payload;
 
 	if (data->opcode == RESET_EVENTS) {
-		pr_debug("adm_callback: Reset event is received: %d %d apr[%p]\n",
+		pr_debug("adm_callback: Reset event is received: %d %d apr[%pK]\n",
 				data->reset_event, data->reset_proc,
 				this_adm.apr);
 		if (this_adm.apr) {
