@@ -654,9 +654,12 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 			void *user_icmph, size_t icmph_len) {
 	u8 type, code;
 
-    if (len > 0xFFFF || len < icmph_len)
+	if (len > 0xFFFF || len < icmph_len)
 		return -EMSGSIZE;
 
+	/* Must have at least a full ICMP header. */
+	if (len < icmph_len)
+		return -EINVAL;
 	/*
 	 *	Check the flags.
 	 */
