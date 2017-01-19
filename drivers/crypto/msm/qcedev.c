@@ -36,6 +36,8 @@
 #include "qcedevi.h"
 #include "qce.h"
 
+#undef  U32_MAX
+#define U32_MAX ((u32)~0U)
 
 #define CACHE_LINE_SIZE 32
 #define CE_SHA_BLOCK_SIZE SHA256_BLOCK_SIZE
@@ -1549,6 +1551,15 @@ static int qcedev_check_cipher_params(struct qcedev_cipher_op_req *req,
 		if (req->byteoffset >= AES_CE_BLOCK_SIZE) {
 			pr_err("%s: Invalid byte offset\n", __func__);
 			goto error;
+		}
+		total = req->byteoffset;
+		for (i = 0; i < req->entries; i++) {
+			if (total > U32_MAX - req->vbuf.src[i].len) {
+				pr_err("%s:Integer overflow on total src len\n",
+				__func__);
+				goto error;
+			}
+			total += req->vbuf.src[i].len;
 		}
 	}
 
