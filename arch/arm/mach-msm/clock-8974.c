@@ -4877,6 +4877,8 @@ static struct clk_lookup msm_clocks_8974pro_only[] __initdata = {
 	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "20.qcom,eeprom"),
 	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "20.qcom,camera"),
 	CLK_LOOKUP("cam_clk", camss_mclk0_clk.c, "20.qcom,eeprom"),
+	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "a0.qcom,eeprom"),
+	CLK_LOOKUP("cam_clk", camss_mclk0_clk.c, "a0.qcom,eeprom"),
 	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "0.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mclk1_clk_src.c, "1.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "2.qcom,camera"),
