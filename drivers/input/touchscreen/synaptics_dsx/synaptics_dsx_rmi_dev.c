@@ -102,11 +102,11 @@ static struct bin_attribute attr_data = {
 };
 
 static struct device_attribute attrs[] = {
-	__ATTR(open, S_IWUGO,
-			synaptics_rmi4_show_error,
+	__ATTR(open, S_IWUSR,
+			NULL,
 			rmidev_sysfs_open_store),
-	__ATTR(release, S_IWUGO,
-			synaptics_rmi4_show_error,
+	__ATTR(release, S_IWUSR,
+			NULL,
 			rmidev_sysfs_release_store),
 	__ATTR(attn_state, S_IRUGO,
 			rmidev_sysfs_attn_state_show,
@@ -114,8 +114,8 @@ static struct device_attribute attrs[] = {
 	__ATTR(pid, S_IRUGO | S_IWUGO,
 			rmidev_sysfs_pid_show,
 			rmidev_sysfs_pid_store),
-	__ATTR(term, S_IWUGO,
-			synaptics_rmi4_show_error,
+	__ATTR(term, S_IWUSR,
+			NULL,
 			rmidev_sysfs_term_store),
 	__ATTR(intr_mask, S_IRUGO | S_IWUGO,
 			rmidev_sysfs_intr_mask_show,
