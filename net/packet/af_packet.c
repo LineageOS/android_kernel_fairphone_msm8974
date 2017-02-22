@@ -3129,7 +3129,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			po->tp_version = val;
 			ret = 0;
 		}
-		release_sock(sk)
+		release_sock(sk);
 		return ret;
 		
 	}
