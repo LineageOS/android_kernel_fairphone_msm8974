@@ -690,21 +690,21 @@ fmbim_send_cpkt_response(struct f_mbim *gr, struct ctrl_pkt *cpkt)
 	unsigned long	flags;
 
 	if (!gr || !cpkt) {
-		pr_err("Invalid cpkt, dev:%pK cpkt:%p\n",
+		pr_err("Invalid cpkt, dev:%pK cpkt:%pK\n",
 				gr, cpkt);
 		return -ENODEV;
 	}
 
-	pr_debug("dev:%p port_num#%d\n", dev, dev->port_num);
+	pr_debug("dev:%pK port_num#%d\n", dev, dev->port_num);
 
 	if (!atomic_read(&dev->online)) {
-		pr_err("dev:%p is not connected\n", dev);
+		pr_err("dev:%pK is not connected\n", dev);
 		mbim_free_ctrl_pkt(cpkt);
 		return 0;
 	}
 
 	if (dev->not_port.notify_state != MBIM_NOTIFY_RESPONSE_AVAILABLE) {
-		pr_err("dev:%p state=%d, recover!!\n", dev,
+		pr_err("dev:%pK state=%d, recover!!\n", dev,
 			dev->not_port.notify_state);
 		mbim_free_ctrl_pkt(cpkt);
 		return 0;
