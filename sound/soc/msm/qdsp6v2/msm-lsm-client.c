@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -324,6 +324,7 @@ static int msm_lsm_close(struct snd_pcm_substream *substream)
 	spin_unlock_irqrestore(&prtd->event_lock, flags);
 	mutex_destroy(&prtd->lsm_api_lock);
 	kfree(prtd);
+	runtime->private_data = NULL;
 
 	return 0;
 }
