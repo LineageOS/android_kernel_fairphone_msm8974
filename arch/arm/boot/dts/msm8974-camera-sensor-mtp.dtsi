@@ -12,13 +12,17 @@
  */
 
 &soc {
-    led_flash0: qcom,camera-led-flash {
+    led_flash1: qcom,camera-led-flash {
         cell-index = <0>;
         compatible = "qcom,camera-led-flash";
         qcom,flash-type = <1>;
         qcom,torch-source = <&pm8941_torch>;
         qcom,flash-source = <&pm8941_flash0 &pm8941_flash1>;
-                };
+        fp2,torch-source,cam-module1 = <&pm8941_torch>;
+        fp2,flash-source,cam-module1 = <&pm8941_flash0 &pm8941_flash1>;
+        fp2,torch-source,cam-module2 = <&lm3644_torch0 &lm3644_torch1>;
+        fp2,flash-source,cam-module2 = <&lm3644_flash0 &lm3644_flash1>;
+    };
 };
 
 &cci {
@@ -135,6 +139,51 @@ eeprom1: qcom,eeprom@a0 {
         qcom,cci-master = <0>;
     };
 
+    flash_ti: ti,flash0@c6 {
+        cell-index = <1>;
+        reg = <0xc6>;
+        qcom,slave-addr= <0xc6>;
+        compatible = "ti,lm3644";
+        qcom,cci-master = <0>;
+
+        lm3644_flash0: qcom,flash_0 {
+          label = "flash";
+          linux,default-trigger =
+            "flash0";
+          linux,name = "flash0";
+          qcom,max-current = <92>;
+          qcom,current = <86>;
+        };
+
+        lm3644_flash1: qcom,flash_1 {
+          linux,default-trigger =
+            "flash1";
+          label = "flash";
+          qcom,id = <2>;
+          linux,name = "flash1";
+          qcom,max-current = <92>;
+          qcom,current = <86>;
+        };
+
+        lm3644_torch0: qcom,flash_torch0 {
+          linux,default-trigger =
+            "torch0";
+          label = "flash";
+          linux,name = "torch0";
+          qcom,max-current = <127>;
+          qcom,current = <127>;
+        };
+
+        lm3644_torch1: qcom,flash_torch1 {
+          linux,default-trigger =
+            "torch1";
+          label = "flash";
+          linux,name = "torch1";
+          qcom,max-current = <127>;
+          qcom,current = <127>;
+        };
+    };
+
     qcom,camera@90 {
         compatible = "qcom,mt9m114";
         reg = <0x90>;
@@ -178,7 +227,7 @@ eeprom1: qcom,eeprom@a0 {
         qcom,mount-angle = <90>;
         qcom,eeprom-src = <&eeprom0 &eeprom1>;
         qcom,actuator-src = <&actuator0>;
-        qcom,led-flash-src = <&led_flash0>;
+        qcom,led-flash-src = <&led_flash1>;
         cam_vdig-supply = <&pm8941_l3>;
         cam_vana-supply = <&pm8941_l17>;
         cam_vio-supply = <&pm8941_lvs3>;
