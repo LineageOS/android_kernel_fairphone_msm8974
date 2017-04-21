@@ -17,6 +17,7 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+#include "detect/fp_cam_detect.h"
 
 #undef CDBG
 #ifdef MSM_EEPROM_DEBUG
@@ -1061,6 +1062,8 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 
 	e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
 	CDBG("%s X\n", __func__);
+
+	fp_cam_module_set(eb_info->eeprom_name);
 	return rc;
 
 power_down:
