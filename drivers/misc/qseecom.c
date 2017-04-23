@@ -177,6 +177,7 @@ struct qseecom_control {
 	struct work_struct bw_inactive_req_ws;
 	struct cdev cdev;
 	bool timer_running;
+	bool appsbl_qseecom_support;
 };
 
 struct qseecom_client_handle {
@@ -1183,7 +1184,7 @@ static int qseecom_unload_app(struct qseecom_dev_handle *data,
 			return -EFAULT;
 		}
 		if (resp.result == QSEOS_RESULT_SUCCESS)
-			pr_info("App (%d) is unloaded!!\n",
+			pr_debug("App (%d) is unloaded!!\n",
 					data->client.app_id);
 		__qseecom_cleanup_app(data);
 		if (resp.result == QSEOS_RESULT_INCOMPLETE) {
@@ -1204,10 +1205,10 @@ static int qseecom_unload_app(struct qseecom_dev_handle *data,
 		} else {
 			if (ptr_app->ref_cnt == 1) {
 				ptr_app->ref_cnt = 0;
-				pr_info("ref_count set to 0\n");
+				pr_debug("ref_count set to 0\n");
 			} else {
 				ptr_app->ref_cnt--;
-				pr_info("Can't unload app(%d) inuse\n",
+				pr_debug("Can't unload app(%d) inuse\n",
 					ptr_app->app_id);
 			}
 		}
@@ -3040,6 +3041,7 @@ static int qseecom_query_app_loaded(struct qseecom_dev_handle *data,
 	struct qseecom_check_app_ireq req;
 	struct qseecom_registered_app_list *entry = NULL;
 	unsigned long flags = 0;
+	bool found_app = false;
 
 	/* Copy the relevant information needed for loading the image */
 	if (copy_from_user(&query_req,
@@ -3066,6 +3068,7 @@ static int qseecom_query_app_loaded(struct qseecom_dev_handle *data,
 				&qseecom.registered_app_list_head, list){
 			if (entry->app_id == ret) {
 				entry->ref_cnt++;
+				found_app = true;
 				break;
 			}
 		}
@@ -3075,6 +3078,29 @@ static int qseecom_query_app_loaded(struct qseecom_dev_handle *data,
 		query_req.app_id = ret;
 		strlcpy(data->client.app_name, query_req.app_name,
 				MAX_APP_NAME_SIZE);
+		/*
+		 * If app was loaded by appsbl or kernel client before
+		 * and was not registered, regiser this app now.
+		 */
+		if (!found_app) {
+			pr_debug("Register app %d [%s] which was loaded before\n",
+					ret, (char *)query_req.app_name);
+			entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+			if (!entry) {
+				pr_err("kmalloc for app entry failed\n");
+				return  -ENOMEM;
+			}
+			entry->app_id = ret;
+			entry->ref_cnt = 1;
+			strlcpy(entry->app_name, data->client.app_name,
+				MAX_APP_NAME_SIZE);
+			spin_lock_irqsave(&qseecom.registered_app_list_lock,
+				flags);
+			list_add_tail(&entry->list,
+				&qseecom.registered_app_list_head);
+			spin_unlock_irqrestore(
+				&qseecom.registered_app_list_lock, flags);
+		}
 		if (copy_to_user(argp, &query_req, sizeof(query_req))) {
 			pr_err("copy_to_user failed\n");
 			return -EFAULT;
@@ -4138,14 +4164,16 @@ static int qseecom_release(struct inode *inode, struct file *file)
 	int ret = 0;
 
 	if (data->released == false) {
-		pr_warn("data: released = false, type = %d, data = 0x%x\n",
+		pr_debug("data: released = false, type = %d, data = 0x%x\n",
 			data->type, (u32)data);
 		switch (data->type) {
 		case QSEECOM_LISTENER_SERVICE:
 			ret = qseecom_unregister_listener(data);
 			break;
 		case QSEECOM_CLIENT_APP:
+			mutex_lock(&app_access_lock);
 			ret = qseecom_unload_app(data, true);
+			mutex_unlock(&app_access_lock);
 			break;
 		case QSEECOM_SECURE_SERVICE:
 		case QSEECOM_GENERIC:
@@ -4475,6 +4503,12 @@ static int __devinit qseecom_probe(struct platform_device *pdev)
 			qseecom.ce_info.qsee_ce_hw_instance);
 		}
 
+		qseecom.appsbl_qseecom_support =
+				of_property_read_bool((&pdev->dev)->of_node,
+						"qcom,appsbl-qseecom-support");
+		pr_info("qseecom.appsbl_qseecom_support = 0x%x",
+				qseecom.appsbl_qseecom_support);
+
 		qseecom.qsee.instance = qseecom.ce_info.qsee_ce_hw_instance;
 		qseecom.ce_drv.instance = qseecom.ce_info.hlos_ce_hw_instance;
 
@@ -4501,7 +4535,8 @@ static int __devinit qseecom_probe(struct platform_device *pdev)
 
 		qseecom_platform_support = (struct msm_bus_scale_pdata *)
 						msm_bus_cl_get_pdata(pdev);
-		if (qseecom.qsee_version >= (QSEE_VERSION_02)) {
+		if (qseecom.qsee_version >= (QSEE_VERSION_02) &&
+			!qseecom.appsbl_qseecom_support) {
 			struct resource *resource = NULL;
 			struct qsee_apps_region_info_ireq req;
 			struct qseecom_command_scm_resp resp;
