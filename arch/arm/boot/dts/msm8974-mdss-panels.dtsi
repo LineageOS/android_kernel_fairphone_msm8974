@@ -20,3 +20,4 @@
 /include/ "dsi-panel-jdi-dualmipi0-cmd.dtsi"
 /include/ "dsi-panel-jdi-dualmipi1-cmd.dtsi"
 /include/ "dsi-panel-otm1902b-1080p-cmd.dtsi"
+/include/ "dsi-panel-s6d6fa1-1080p-video.dtsi"

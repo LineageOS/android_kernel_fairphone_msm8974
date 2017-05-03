@@ -85,3 +85,4 @@ obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= ft5x06_ts.o
 #obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX)+= synaptics_dsx/
+obj-$(CONFIG_TOUCHSCREEN_ITS)+= ilitek/

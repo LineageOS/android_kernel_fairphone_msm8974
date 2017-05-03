@@ -27,6 +27,7 @@
 
 	qcom,mdss_dsi@fd922800 {
 		qcom,dsi-pref-prim-pan = <&dsi_otm1902b_1080p_cmd>;
+		/*qcom,dsi-pref-prim-pan = <&dsi_s6d6fa1_1080p_video>;*/
 	};
 
 	qcom,mdss_mdp@fd900000 {
@@ -39,6 +40,19 @@
 	};
 
 	i2c@f9924000 {
+
+		ilitek@41{
+			compatible = "ilitek,2120";
+			reg = <0x41>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <28 0x2>;
+			vcc_i2c-supply = <&pm8941_s3>;
+			ilitek,name = "ilitek_i2c";
+			ilitek,reset-gpio = <&msmgpio 55 0x00>;
+			ilitek,irq-gpio = <&msmgpio 28 0x02>;
+			ilitek,vbus = "vcc_i2c";
+		};
+
 		synaptics_dsx@20 {
 			compatible = "synaptics,dsx";
 			reg = <0x20>;
@@ -745,6 +759,10 @@
 };
 
 &dsi_otm1902b_1080p_cmd {
+       qcom,cont-splash-enabled;
+};
+
+&dsi_s6d6fa1_1080p_video {
        qcom,cont-splash-enabled;
 };
 

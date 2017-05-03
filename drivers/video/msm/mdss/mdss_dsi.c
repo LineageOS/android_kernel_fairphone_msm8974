@@ -88,7 +88,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 				goto error;
 			}
 
-			if (synaptics_touch_bdata && (synaptics_touch_bdata->reset_gpio >= 0)) {
+			if ((mdss_dsi_panel_id() < PANEL_FP2_S6D6FA1_VIDEO) && synaptics_touch_bdata && (synaptics_touch_bdata->reset_gpio >= 0)) {
 					gpio_set_value(synaptics_touch_bdata->reset_gpio, !synaptics_touch_bdata->reset_on_state);
 					msleep(synaptics_touch_bdata->reset_delay_ms);
 			}
