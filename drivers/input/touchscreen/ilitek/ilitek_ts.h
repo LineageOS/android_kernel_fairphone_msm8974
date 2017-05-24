@@ -296,6 +296,7 @@ struct i2c_data {
 
 	int function_ctrl;
 	bool force_upgrade;
+	int enable_gpio;
 };
 
 

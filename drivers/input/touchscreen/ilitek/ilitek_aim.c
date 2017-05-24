@@ -73,6 +73,7 @@ static int Request_IRQ(void);
 static int ilitek_request_init_reset(void);
 static int ilitek_init(void);
 static void ilitek_exit(void);
+static bool is_ilitek_powered_on(void);
 
 #ifdef DEBUG_NETLINK
 static struct sock *netlink_sock;
@@ -611,6 +612,12 @@ static int ilitek_i2c_process_and_report(void)
 static irqreturn_t ilitek_i2c_isr(int irq, void *dev_id)
 {
 	tp_log_info("ENTER %s\n",__func__);
+
+	if (!is_ilitek_powered_on())
+	{
+		return IRQ_HANDLED;
+	}
+
 	if(i2c.firmware_updating) {
 		tp_log_info("%s: tp fw is updating,return\n", __func__);
 		return IRQ_HANDLED;
@@ -1168,6 +1175,12 @@ int ilitek_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 		tp_log_info("%s: tp fw is updating,return\n", __func__);
 		return 0;
 	}
+
+	if (!is_ilitek_powered_on())
+	{
+		return 0;
+	}
+
 	tp_log_info("Enter ilitek_i2c_suspend 0x01 0x00, 0x0A 0x01\n");
 	cmd[0] = 0x01;
 	cmd[1] = 0x00;
@@ -1333,10 +1346,25 @@ int read_product_id(void)
 	return 0;
 }
 
+static bool is_ilitek_powered_on(void)
+{
+	int en_gpio_val;
+
+	if (gpio_is_valid(i2c.enable_gpio)) {
+		en_gpio_val = gpio_get_value(i2c.enable_gpio);
+
+		return en_gpio_val == 1;
+	}
+
+	return true;
+}
+
 static int ilitek_i2c_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int retval = 0;
+	struct device *dev = &(client->dev);
+	struct device_node *np = dev->of_node;
 #ifdef ILI_UPDATE_FW
 	struct task_struct *thread_update = NULL;
 #endif
@@ -1374,6 +1402,7 @@ static int ilitek_i2c_probe(struct i2c_client *client,
 	i2c.hall_y1 = 0;
 	i2c.force_upgrade = false;
 	i2c.client = client;
+	i2c.enable_gpio =  of_get_named_gpio(np, "ilitek,power-enable-gpio", 0);
 
 	retval = ilitek_power_on();
 	if (retval) {

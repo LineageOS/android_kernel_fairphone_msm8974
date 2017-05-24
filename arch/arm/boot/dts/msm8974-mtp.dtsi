@@ -51,6 +51,7 @@
 			ilitek,reset-gpio = <&msmgpio 55 0x00>;
 			ilitek,irq-gpio = <&msmgpio 28 0x02>;
 			ilitek,vbus = "vcc_i2c";
+			ilitek,power-enable-gpio = <&msmgpio 25 0>;
 		};
 
 		synaptics_dsx@20 {
