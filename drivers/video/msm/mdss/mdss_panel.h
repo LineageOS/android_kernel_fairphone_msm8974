@@ -160,7 +160,8 @@ enum mdss_intf_events {
 };
 
 enum {
-	PANEL_QCOM = 0,
+	PANEL_FP2_UNKNOWN = -1,
+	PANEL_FP2_UNSUPPORTED = 0,
 	PANEL_FP2_EA8062_CMD = 1,
 	PANEL_FP2_S6D6FA1_VIDEO,
 };

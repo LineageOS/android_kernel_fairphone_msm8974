@@ -1,4 +1,5 @@
 #include "ilitek_ts.h"
+#include "mdss_dsi.h"
 #ifdef GESTURE
 static int system_resume_ilitek = 1;
 #endif
@@ -1365,6 +1366,23 @@ static int ilitek_i2c_probe(struct i2c_client *client,
 	int retval = 0;
 	struct device *dev = &(client->dev);
 	struct device_node *np = dev->of_node;
+
+	/*
+	 * Continue probing only if the display module with an Ilitek touchscreen is present,
+	 * which is detected based on the installed panel.
+	 * Defer probing if this is not known yet, and in other cases return ENODEV.
+	 */
+	switch (mdss_dsi_panel_id()) {
+		case PANEL_FP2_S6D6FA1_VIDEO:
+			break;
+		case PANEL_FP2_UNKNOWN:
+			return -EPROBE_DEFER;
+		case PANEL_FP2_EA8062_CMD:
+			/* fall through */
+		default:
+			return -ENODEV;
+	}
+
 #ifdef ILI_UPDATE_FW
 	struct task_struct *thread_update = NULL;
 #endif

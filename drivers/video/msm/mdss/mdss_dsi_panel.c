@@ -28,7 +28,7 @@
 
 #define MIN_REFRESH_RATE 30
 
-static int mdss_panel_id = PANEL_QCOM;
+static int mdss_panel_id = PANEL_FP2_UNKNOWN;
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
@@ -963,6 +963,8 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-pan-id", &tmp);
 	if (!rc)
 		mdss_panel_id = tmp;
+	else
+		mdss_panel_id = PANEL_FP2_UNSUPPORTED;
 	pr_info("%s: Panel ID = %d\n", __func__, mdss_panel_id);
 
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-width", &tmp);
