@@ -50,7 +50,7 @@
 #define SENSOR_TEST
 //#define REPORT_PRESSURE
 //#define RESET_GPIO  12
-#define GESTURE
+//#define GESTURE
 //#define DEBUG_NETLINK
 #ifdef DEBUG_NETLINK
 #include <linux/kernel.h>
