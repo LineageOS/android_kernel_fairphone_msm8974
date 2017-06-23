@@ -255,9 +255,12 @@ kgsl_mem_entry_create(void)
 
 	if (!entry)
 		KGSL_CORE_ERR("kzalloc(%d) failed\n", sizeof(*entry));
-	else
+	else {
 		kref_init(&entry->refcount);
 
+		/* put this ref in the caller functions after init */
+		kref_get(&entry->refcount);
+	}
 	return entry;
 }
 
@@ -3178,6 +3181,8 @@ static long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 	trace_kgsl_mem_map(entry, param->fd);
     kgsl_mem_entry_commit_process(private, entry);
 
+	/* put the extra refcount for kgsl_mem_entry_create() */
+	kgsl_mem_entry_put(entry);
 	return result;
 
 error_attach:
@@ -3468,6 +3473,10 @@ kgsl_ioctl_gpumem_alloc(struct kgsl_device_private *dev_priv,
 	param->size = entry->memdesc.size;
 	param->flags = entry->memdesc.flags;
     kgsl_mem_entry_commit_process(private, entry);
+
+	/* put the extra refcount for kgsl_mem_entry_create() */
+	kgsl_mem_entry_put(entry);
+
 	return result;
 err:
 	kgsl_sharedmem_free(&entry->memdesc);
@@ -3504,6 +3513,10 @@ kgsl_ioctl_gpumem_alloc_id(struct kgsl_device_private *dev_priv,
 	param->mmapsize = kgsl_memdesc_mmapsize(&entry->memdesc);
 	param->gpuaddr = entry->memdesc.gpuaddr;
     kgsl_mem_entry_commit_process(private, entry);
+
+	/* put the extra refcount for kgsl_mem_entry_create() */
+	kgsl_mem_entry_put(entry);
+
 	return result;
 err:
 	if (entry)
