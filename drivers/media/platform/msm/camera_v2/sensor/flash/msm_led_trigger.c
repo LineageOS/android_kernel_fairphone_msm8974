@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include "msm_led_flash.h"
 #include "detect/fp_cam_detect.h"
+#include "lm3644_pm8941_power.h"
 
 #define FLASH_NAME "camera-led-flash"
 
@@ -45,6 +46,16 @@ static int32_t msm_led_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
 	*subdev_id = fctrl->pdev->id;
 	CDBG("%s:%d subdev_id %d\n", __func__, __LINE__, *subdev_id);
 	return 0;
+}
+
+static void msm_led_trigger_reset_leds(struct msm_led_flash_ctrl_t *fctrl)
+{
+	uint32_t i;
+	for (i = 0; i < fctrl->num_sources; i++)
+		if (fctrl->flash_trigger[i])
+			led_trigger_event(fctrl->flash_trigger[i], 0);
+	if (fctrl->torch_trigger)
+		led_trigger_event(fctrl->torch_trigger, 0);
 }
 
 static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
@@ -106,12 +117,13 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		break;
 
 	case MSM_CAMERA_LED_INIT:
+		CDBG("%s: MSM_CAMERA_LED_INIT\n", __func__);
+		msm_led_trigger_reset_leds(fctrl);
+		break;
+
 	case MSM_CAMERA_LED_RELEASE:
-		for (i = 0; i < fctrl->num_sources; i++)
-			if (fctrl->flash_trigger[i])
-				led_trigger_event(fctrl->flash_trigger[i], 0);
-		if (fctrl->torch_trigger)
-			led_trigger_event(fctrl->torch_trigger, 0);
+		CDBG("%s: MSM_CAMERA_LED_RELEASE\n", __func__);
+		msm_led_trigger_reset_leds(fctrl);
 		break;
 
 	default:
