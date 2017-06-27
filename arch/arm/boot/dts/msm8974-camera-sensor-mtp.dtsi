@@ -20,7 +20,7 @@
         qcom,flash-source = <&pm8941_flash0 &pm8941_flash1>;
         fp2,torch-source,cam-module1 = <&pm8941_torch>;
         fp2,flash-source,cam-module1 = <&pm8941_flash0 &pm8941_flash1>;
-        fp2,torch-source,cam-module2 = <&lm3644_torch0 &lm3644_torch1>;
+        fp2,torch-source,cam-module2 = <&lm3644_torch_dual>;
         fp2,flash-source,cam-module2 = <&lm3644_flash0 &lm3644_flash1>;
     };
 };
@@ -145,6 +145,8 @@ eeprom1: qcom,eeprom@a0 {
         qcom,slave-addr= <0xc6>;
         compatible = "ti,lm3644";
         qcom,cci-master = <0>;
+        fp,torch-current-led0 = <9>;
+        fp,torch-current-led1 = <15>;
 
         lm3644_flash0: qcom,flash_0 {
           label = "flash";
@@ -181,6 +183,18 @@ eeprom1: qcom,eeprom@a0 {
           linux,name = "torch1";
           qcom,max-current = <127>;
           qcom,current = <15>;
+        };
+
+        lm3644_torch_dual: qcom,flash_torch_dual {
+          linux,default-trigger = "torch_dual";
+          label = "flash";
+          linux,name = "torch_dual";
+          /*
+           * Settings for current are ignored by this trigger but need to be
+           * set for framework. Use fp,torch-current-led{0,1} above.
+           */
+          qcom,max-current = <127>;
+          qcom,current = <127>;
         };
     };
 
