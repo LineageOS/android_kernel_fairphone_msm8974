@@ -249,8 +249,16 @@ eeprom1: qcom,eeprom@a0 {
         qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana",
                      "cam_vaf";
         qcom,cam-vreg-type = <0 1 0 0>;
+
         qcom,cam-vreg-min-voltage = <1225000 0 2850000 3000000>;
         qcom,cam-vreg-max-voltage = <1225000 0 2850000 3000000>;
+
+        fp,cam-vreg-min-voltage,cam_module_1 = <1225000 0 2850000 3000000>;
+        fp,cam-vreg-max-voltage,cam_module_1 = <1225000 0 2850000 3000000>;
+
+        fp,cam-vreg-max-voltage,cam_module_2 = <1225000 0 3000000 3000000>;
+        fp,cam-vreg-min-voltage,cam_module_2 = <1225000 0 3000000 3000000>;
+
         qcom,cam-vreg-op-mode = <105000 0 80000 100000>;
         qcom,gpio-no-mux = <0>;
         gpios = <&msmgpio 15 0>,
