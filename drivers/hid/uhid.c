@@ -269,13 +269,14 @@ static int uhid_hid_output_raw(struct hid_device *hid, __u8 *buf, size_t count,
 	return count;
 }
 
-static struct hid_ll_driver uhid_hid_driver = {
+struct hid_ll_driver uhid_hid_driver = {
 	.start = uhid_hid_start,
 	.stop = uhid_hid_stop,
 	.open = uhid_hid_open,
 	.close = uhid_hid_close,
 	.parse = uhid_hid_parse,
 };
+EXPORT_SYMBOL_GPL(uhid_hid_driver);
 
 static int uhid_dev_create(struct uhid_device *uhid,
 			   const struct uhid_event *ev)
