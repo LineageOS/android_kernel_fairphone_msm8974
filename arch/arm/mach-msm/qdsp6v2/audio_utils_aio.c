@@ -684,7 +684,8 @@ static long audio_aio_process_event_req(struct q6audio_aio *audio,
 	struct audio_aio_event *drv_evt = NULL;
 	int timeout;
 	unsigned long flags;
-
+	memset(&usr_evt, 0, sizeof(struct msm_audio_event));
+ 
 	if (copy_from_user(&usr_evt, arg, sizeof(struct msm_audio_event)))
 		return -EFAULT;
 
