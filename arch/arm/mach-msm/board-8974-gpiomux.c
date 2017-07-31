@@ -835,8 +835,18 @@ static struct msm_gpiomux_config msm_sensor_configs[] __initdata = {
 	{
 		.gpio = 23, /* FLASH_LED_EN */
 		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[0],
-			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[1],
+			/*
+			 * TODO: Dynamically configure this for old and new camera module.
+			 *
+			 * For new module GPIO 23 needs to be floating, i.e. no
+			 * GPIOMUX_ACTIVE setting and GPIOMUX_SUSPENDED set to
+			 * &gpio_suspend_config[0].
+			 *
+			 * Old camera module needs to forward input from GPIO 23 to PMIC:
+			 * [GPIOMUX_ACTIVE] = &cam_settings[0],
+			 * [GPIOMUX_SUSPENDED = &gpio_suspend_config[1],
+			 */
+			[GPIOMUX_SUSPENDED] = &gpio_suspend_config[0],
 		},
 	},
 	{
