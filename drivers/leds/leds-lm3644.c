@@ -48,11 +48,17 @@ struct msm_camera_i2c_reg_conf;
 #define REG_FLAG0		0x0a
 #define REG_FLAG1		0x0b
 
+#define LM3644_MODE_BITS	0x0c
+#define LM3644_STANDBY_MODE	(MODE_STDBY << 2)
+#define LM3644_TORCH_MODE	(MODE_TORCH << 2)
+#define LM3644_STROBE_FLASH_MODE	LM3644_STANDBY_MODE
+
 enum lm3644_devid {
 	ID_FLASH0 = 0x0,
 	ID_FLASH1,
 	ID_TORCH0,
 	ID_TORCH1,
+	ID_TORCH_DUAL,
 	ID_MAX
 };
 
@@ -106,6 +112,9 @@ struct lm3644 {
 	struct lm3644_platform_data *pdata;
 	struct regmap *regmap;
 	struct mutex lock;
+
+	unsigned int torch_current_led0;
+	unsigned int torch_current_led1;
 };
 
 enum lm3644_cmd_id {
@@ -270,6 +279,56 @@ static void lm3644_torch1_brightness_set(struct led_classdev *cdev,
 	schedule_work_on(0, &pchip->work[ID_TORCH1]);
 }
 
+
+/*
+ * Dual LED enabled torch
+ */
+
+static void lm3644_torch_dual_brightness_set(struct led_classdev *cdev,
+					 enum led_brightness brightness)
+{
+	struct lm3644 *pchip =
+	    container_of(cdev, struct lm3644, cdev[ID_TORCH_DUAL]);
+
+	/* Only indicate LEDs are on to keep chip from being disabled.
+	 * Values from device tree are used for brightness. */
+	pchip->brightness[ID_TORCH_DUAL] = brightness > 0 ? 1 : 0;
+	schedule_work_on(0, &pchip->work[ID_TORCH_DUAL]);
+}
+
+static void lm3644_torch_dual_enable_disable(struct lm3644 *pchip)
+{
+	unsigned enabled = (pchip->brightness[ID_TORCH_DUAL] > 0);
+	unsigned flash_enable_bits = (ID_TORCH0 - 1) | (ID_TORCH1 - 1);
+
+	/* enable torch mode */
+	regmap_update_bits(pchip->regmap, REG_ENABLE, LM3644_MODE_BITS,
+			enabled ? LM3644_TORCH_MODE : LM3644_STANDBY_MODE);
+	/* flash0 and flash1 enable */
+	regmap_update_bits(pchip->regmap, REG_ENABLE, flash_enable_bits,
+			enabled ? flash_enable_bits : 0);
+}
+
+static void lm3644_deferred_torch_dual_brightness_set(struct work_struct *work)
+{
+	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_TORCH_DUAL]);
+	unsigned int enabled = pchip->brightness[ID_TORCH_DUAL] > 0;
+	if ( (lm3644_power_up(pchip) < 0) ) {
+		return;
+	}
+
+	lm3644_set_brightness(pchip, REG_TORCH_LED0_BR,
+			enabled ? pchip->torch_current_led0 : 0);
+	lm3644_set_brightness(pchip, REG_TORCH_LED1_BR,
+			enabled ? pchip->torch_current_led1 : 0);
+
+	lm3644_torch_dual_enable_disable(pchip);
+}
+
+/*
+ * Flash
+ */
+
 static void lm3644_flash_enable_disable(struct lm3644 *pchip, int flash_id)
 {
 	unsigned enabled = (pchip->brightness[flash_id] > 0);
@@ -371,6 +430,13 @@ static struct lm3644_devices lm3644_leds[ID_MAX] = {
 		       .cdev.brightness_set = lm3644_torch1_brightness_set,
 		       .cdev.default_trigger = "torch0",
 		       .func = lm3644_deferred_torch1_brightness_set},
+	[ID_TORCH_DUAL] = {
+		       .cdev.name = "torch_dual",
+		       .cdev.brightness = 0,
+		       .cdev.max_brightness = 0x7f,
+		       .cdev.brightness_set = lm3644_torch_dual_brightness_set,
+		       .cdev.default_trigger = "torch_dual",
+		       .func = lm3644_deferred_torch_dual_brightness_set},
 };
 
 static void lm3644_led_unregister(struct lm3644 *pchip, enum lm3644_devid id)
@@ -816,6 +882,21 @@ static int lm3644_probe(struct platform_device *pdev)
 	        return rval;
 	}
 
+	rval = of_property_read_u32(of_node, "fp,torch-current-led0",
+			&pchip->torch_current_led0);
+	if (rval < 0) {
+		/* Use maximum value if undefined */
+		pchip->torch_current_led0 =
+			lm3644_leds[ID_TORCH_DUAL].cdev.max_brightness;
+	}
+
+	rval = of_property_read_u32(of_node, "fp,torch-current-led1",
+			&pchip->torch_current_led1);
+	if (rval < 0) {
+		/* Use maximum value if undefined */
+		pchip->torch_current_led1 =
+			lm3644_leds[ID_TORCH_DUAL].cdev.max_brightness;
+	}
 
 	cci_client = pchip->i2c_client.cci_client;
 	cci_client->cci_subdev = msm_cci_get_subdev();
