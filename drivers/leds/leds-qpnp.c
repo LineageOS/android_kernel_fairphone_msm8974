@@ -27,6 +27,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#include "lm3644_pm8941_power.h"
+
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
 #define WLED_FULL_SCALE_REG(base, n)	(WLED_IDAC_DLY_REG(base, n) + 0x01)
@@ -106,6 +108,14 @@
 #define FLASH_PERIPHERAL_SUBTYPE(base)	(base + 0x05)
 #define FLASH_CURRENT_RAMP(base)	(base + 0x54)
 
+
+#define FLASH_VPH_PWR_DROOP(base) (base + 0x5A)
+#define	FLASH_VPH_PWR_DROOP_MASK		  0x80
+#define	FLASH_VPH_PWR_DROOP_ENABLE		0x80
+#define	FLASH_VPH_PWR_DROOP_DISABLE		0x00
+
+
+
 #define FLASH_MAX_LEVEL			0x4F
 #define TORCH_MAX_LEVEL			0x0F
 #define	FLASH_NO_MASK			0x00
@@ -134,6 +144,9 @@
 #define FLASH_ENABLE_LED_1		0xA0
 #define FLASH_INIT_MASK			0xE0
 #define	FLASH_SELFCHECK_ENABLE		0x80
+#define	FLASH_SELFCHECK_DISABLE  	0x80
+
+
 #define FLASH_RAMP_STEP_27US		0xBF
 
 #define FLASH_HW_SW_STROBE_SEL_MASK	0x04
@@ -416,7 +429,7 @@ struct flash_config_data {
 	bool	safety_timer;
 	bool	torch_enable;
 	bool	flash_reg_get;
-	bool    flash_wa_reg_get;
+	bool  flash_wa_reg_get;
 	bool	flash_on;
 	bool	torch_on;
 	struct regulator *flash_boost_reg;
@@ -1019,6 +1032,15 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 				goto error_reg_write;
 			}
 
+			/* Set self fault check */
+			rc = qpnp_led_masked_write(led, FLASH_FAULT_DETECT(led->base),
+				FLASH_FAULT_DETECT_MASK, FLASH_SELFCHECK_DISABLE);
+			if (rc) {
+				dev_err(&led->spmi_dev->dev,
+					"Fault detect reg write failed(%d)\n", rc);
+				return rc;
+			}
+
 			rc = qpnp_led_masked_write(led,
 				led->flash_cfg->current_addr,
 				FLASH_CURRENT_MASK,
@@ -1541,6 +1563,7 @@ static void __qpnp_led_work(struct qpnp_led_data *led,
 	case QPNP_ID_FLASH1_LED0:
 	case QPNP_ID_FLASH1_LED1:
 		rc = qpnp_flash_set(led);
+		qpnp_dump_regs(led, flash_debug_regs, ARRAY_SIZE(flash_debug_regs));
 		if (rc < 0)
 			dev_err(&led->spmi_dev->dev,
 				"FLASH set brightness failed (%d)\n", rc);
@@ -2520,7 +2543,7 @@ static int __devinit qpnp_flash_init(struct qpnp_led_data *led)
 
 	/* Set self fault check */
 	rc = qpnp_led_masked_write(led, FLASH_FAULT_DETECT(led->base),
-		FLASH_FAULT_DETECT_MASK, FLASH_SELFCHECK_ENABLE);
+		FLASH_FAULT_DETECT_MASK, FLASH_SELFCHECK_DISABLE);
 	if (rc) {
 		dev_err(&led->spmi_dev->dev,
 			"Fault detect reg write failed(%d)\n", rc);
@@ -3428,6 +3451,11 @@ static int __devinit qpnp_leds_probe(struct spmi_device *spmi)
 		return -ENOMEM;
 	}
 
+	if ((rc = lm3644_pm8941_power_init(spmi))) {
+		/* lm3644_pm8941_power took over */
+		return rc;
+	}
+
 	for_each_child_of_node(node, temp) {
 		led = &led_array[parsed_leds];
 		led->num_leds = num_leds;
@@ -3795,4 +3823,3 @@ module_exit(qpnp_led_exit);
 MODULE_DESCRIPTION("QPNP LEDs driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("leds:leds-qpnp");
-
