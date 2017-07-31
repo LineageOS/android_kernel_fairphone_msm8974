@@ -1,0 +1,29 @@
+#
+# Multimedia Video device configuration
+#
+
+if VIDEO_V4L2
+
+#
+# Encoder / Decoder module configuration
+#
+
+menu "Encoders, decoders, sensors and other helper chips"
+	visible if !MEDIA_SUBDRV_AUTOSELECT
+
+comment "Flash devices"
+
+config VIDEO_LM3644
+	tristate "LM3644 dual flash driver support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_I2C
+	---help---
+	  This is a driver for the lm3644 dual flash controllers. It controls
+	  flash, torch and ir modes.
+
+endmenu
+
+
+
+endif
