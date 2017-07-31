@@ -33,8 +33,7 @@
 #include "msm_camera_regmap_i2c.h"
 #include "msm_camera_dt_util.h"
 #include "detect/fp_cam_detect.h"
-#include "lm3644_pm8941_power.h"
-
+#include <asm/stacktrace.h>
 
 struct msm_camera_i2c_reg_conf;
 
@@ -85,8 +84,10 @@ enum lm3644_devfile {
 	DFILE_MAX
 };
 
+static struct workqueue_struct *lm3644_wq;
+
 #undef CDBG
-#if 1
+#if 0
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
 #else
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -99,9 +100,6 @@ struct lm3644 {
 	struct msm_camera_i2c_client i2c_client;
 	uint32_t i2c_slaveaddr;
 	uint32_t cci_master;
-
-	unsigned is_powered;
-	struct timer_list power_down_timer;
 
 	struct device *dev;
 
@@ -142,66 +140,54 @@ struct lm3644_commands cmds[CMD_MAX] = {
 	[CMD_OVERRIDE] = {"override", 8},
 };
 
+static struct lm3644 *_pchip;
+
 static size_t lm3644_ctrl(struct device *dev,
 			  const char *buf, enum lm3644_devid id,
 			  enum lm3644_devfile dfid, size_t size);
 
 
-#define LM3644_POWER_TIMER_DELAY_MS 1000
-
-static void lm3644_power_down_timer_func(unsigned long data);
-
-/* to be called during driver initialization */
-static void lm3644_power_init(struct lm3644 *pchip) {
-	setup_timer(&pchip->power_down_timer, lm3644_power_down_timer_func,
-			(unsigned long) pchip);
-}
-
-/* XXX: Currently we are looking for the brightness values
- * stored in the driver; maybe we want to check the enable
- * registers instead */
-static int lm3644_should_power_down(struct lm3644 *pchip) {
-	int i;
-	for(i = 0; i < ID_MAX ; i++) {
-		if (pchip->brightness[i] > 0)
-			return 0;
-	}
-	return 1;
-}
-
-void lm3644_schedule_powerdown_timer_func(struct lm3644 *pchip) {
-	if (pchip->is_powered) {
-		mod_timer(&pchip->power_down_timer, jiffies +
-			msecs_to_jiffies(LM3644_POWER_TIMER_DELAY_MS));
-	}
-}
-
-static void lm3644_power_down_timer_func(unsigned long data) {
-	struct lm3644 *pchip = (void*) data;
-	if (lm3644_should_power_down(pchip)) {
-		lm3644_pm8941_power_down();
-		pchip->is_powered = 0;
-	} else {
-		lm3644_pm8941_power_pet_watchdog();
-	}
-	lm3644_schedule_powerdown_timer_func(pchip);
-}
-
-static int lm3644_power_up(struct lm3644 *pchip)
+static void lm3644_set_brightness(struct lm3644 *pchip,
+		unsigned int reg, unsigned int brightness)
 {
-	int ret = 0;
-	mutex_lock(&pchip->lock);
-	del_timer_sync(&pchip->power_down_timer);
-	if (!pchip->is_powered) {
-		if( (ret = lm3644_pm8941_power_up()) )
-			goto error;
-		pchip->is_powered = 1;
+	if (regmap_update_bits(pchip->regmap, reg, 0xff, brightness))
+		dev_err(pchip->dev, "I2C access fail (reg: 0x%x)\n", reg);
+}
+
+static void lm3644_power_up(struct lm3644 *pchip)
+{
+	msm_sensor_cci_i2c_util(&pchip->i2c_client, MSM_CCI_INIT);
+
+}
+
+static void lm3644_power_down(struct lm3644 *pchip)
+{
+	msm_sensor_cci_i2c_util(&pchip->i2c_client, MSM_CCI_RELEASE);
+}
+
+void lm3644_deinit(void) {
+        struct lm3644 *pchip = _pchip;
+		if (!_pchip) {
+			return;
+		}
+        lm3644_power_down(pchip);
+}
+
+void lm3644_init(void)
+{
+	struct lm3644 *pchip = _pchip;
+	if (!_pchip) {
+		return;
 	}
-	/* we can extend the time now for LM3644_POWER_TIMER_DELAY_MS */
-error:
-	lm3644_schedule_powerdown_timer_func(pchip);
-	mutex_unlock(&pchip->lock);
-	return ret;
+	lm3644_power_up(pchip);
+	/* Disable both LEDs */
+	regmap_update_bits(pchip->regmap, REG_ENABLE, 0x3, 0x0);
+
+	/* Set brightness to lowest values */
+	lm3644_set_brightness(pchip, REG_FLASH_LED0_BR, 0);
+	lm3644_set_brightness(pchip, REG_FLASH_LED1_BR, 0);
+	lm3644_set_brightness(pchip, REG_TORCH_LED0_BR, 0);
+	lm3644_set_brightness(pchip, REG_TORCH_LED1_BR, 0);
 }
 
 static void lm3644_read_flag(struct lm3644 *pchip)
@@ -227,7 +213,8 @@ static void lm3644_torch_enable_disable(struct lm3644 *pchip, int flash_id)
 	/* enable torch mode */
 	regmap_update_bits(pchip->regmap, REG_ENABLE, 0x0c, enabled?0x08:0);
 	/* flash0 or flash1 enable */
-	regmap_update_bits(pchip->regmap, REG_ENABLE, flash_enable_bit,
+
+        regmap_update_bits(pchip->regmap, REG_ENABLE, flash_enable_bit,
 		enabled?flash_enable_bit:0);
 }
 
@@ -235,6 +222,7 @@ static void lm3644_torch_enable_disable(struct lm3644 *pchip, int flash_id)
 static void lm3644_deferred_torch0_brightness_set(struct work_struct *work)
 {
 	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_TORCH0]);
+
 
 	if (regmap_update_bits(pchip->regmap, REG_TORCH_LED0_BR, 0x7f,
 			pchip->brightness[ID_TORCH0]))
@@ -248,21 +236,19 @@ static void lm3644_torch0_brightness_set(struct led_classdev *cdev,
 					 enum led_brightness brightness)
 {
 	struct lm3644 *pchip =
-	    container_of(cdev, struct lm3644, cdev[ID_TORCH0]);
-
+		container_of(cdev, struct lm3644, cdev[ID_TORCH0]);
 	pchip->brightness[ID_TORCH0] = brightness;
-	schedule_work_on(0, &pchip->work[ID_TORCH0]);
+	queue_work(lm3644_wq, &pchip->work[ID_TORCH0]);
 }
 
 /* torch1 brightness control */
 static void lm3644_deferred_torch1_brightness_set(struct work_struct *work)
 {
 	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_TORCH1]);
-	if ( (lm3644_power_up(pchip) < 0) )
-		return;
+
 
 	if (regmap_update_bits(pchip->regmap, REG_TORCH_LED1_BR, 0x7f,
-			       pchip->brightness[ID_TORCH1]))
+			pchip->brightness[ID_TORCH1]))
 		dev_err(pchip->dev, "i2c access fail.\n");
 
 	lm3644_torch_enable_disable(pchip, ID_TORCH1);
@@ -273,10 +259,10 @@ static void lm3644_torch1_brightness_set(struct led_classdev *cdev,
 					 enum led_brightness brightness)
 {
 	struct lm3644 *pchip =
-	    container_of(cdev, struct lm3644, cdev[ID_TORCH1]);
+	container_of(cdev, struct lm3644, cdev[ID_TORCH1]);
 
 	pchip->brightness[ID_TORCH1] = brightness;
-	schedule_work_on(0, &pchip->work[ID_TORCH1]);
+	queue_work(lm3644_wq, &pchip->work[ID_TORCH1]);
 }
 
 
@@ -288,12 +274,12 @@ static void lm3644_torch_dual_brightness_set(struct led_classdev *cdev,
 					 enum led_brightness brightness)
 {
 	struct lm3644 *pchip =
-	    container_of(cdev, struct lm3644, cdev[ID_TORCH_DUAL]);
+		container_of(cdev, struct lm3644, cdev[ID_TORCH_DUAL]);
 
 	/* Only indicate LEDs are on to keep chip from being disabled.
 	 * Values from device tree are used for brightness. */
 	pchip->brightness[ID_TORCH_DUAL] = brightness > 0 ? 1 : 0;
-	schedule_work_on(0, &pchip->work[ID_TORCH_DUAL]);
+	queue_work(lm3644_wq, &pchip->work[ID_TORCH_DUAL]);
 }
 
 static void lm3644_torch_dual_enable_disable(struct lm3644 *pchip)
@@ -313,9 +299,6 @@ static void lm3644_deferred_torch_dual_brightness_set(struct work_struct *work)
 {
 	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_TORCH_DUAL]);
 	unsigned int enabled = pchip->brightness[ID_TORCH_DUAL] > 0;
-	if ( (lm3644_power_up(pchip) < 0) ) {
-		return;
-	}
 
 	lm3644_set_brightness(pchip, REG_TORCH_LED0_BR,
 			enabled ? pchip->torch_current_led0 : 0);
@@ -323,6 +306,7 @@ static void lm3644_deferred_torch_dual_brightness_set(struct work_struct *work)
 			enabled ? pchip->torch_current_led1 : 0);
 
 	lm3644_torch_dual_enable_disable(pchip);
+	lm3644_read_flag(pchip);
 }
 
 /*
@@ -334,8 +318,14 @@ static void lm3644_flash_enable_disable(struct lm3644 *pchip, int flash_id)
 	unsigned enabled = (pchip->brightness[flash_id] > 0);
 	unsigned flash_enable_bit = flash_id + 1;
 
-	/* flash strobe (we can always set this one, could be also done in power up?)*/
+	/* increase flash time-out slightly */
+	regmap_update_bits(pchip->regmap, REG_FLASH_TOUT, 0xf, 0xf); /* 0xf -> 400ms */
+	/* flash strobe (we can always set this one)*/
 	regmap_update_bits(pchip->regmap, REG_ENABLE, 0x20, 0x20);
+	/* standby mode */
+	regmap_update_bits(pchip->regmap, REG_ENABLE, LM3644_MODE_BITS,
+		LM3644_STANDBY_MODE);
+
 	/* enable flash mode */
 	regmap_update_bits(pchip->regmap, REG_ENABLE, 0x0c, 0);
 	/* flash0 or flash1 enable */
@@ -347,9 +337,6 @@ static void lm3644_flash_enable_disable(struct lm3644 *pchip, int flash_id)
 static void lm3644_deferred_flash0_brightness_set(struct work_struct *work)
 {
 	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_FLASH0]);
-
-	if ( lm3644_power_up(pchip) < 0 )
-		return;
 
 	if (regmap_update_bits(pchip->regmap,
 			       REG_FLASH_LED0_BR, 0xff,
@@ -367,17 +354,13 @@ static void lm3644_flash0_brightness_set(struct led_classdev *cdev,
 	    container_of(cdev, struct lm3644, cdev[ID_FLASH0]);
 
 	pchip->brightness[ID_FLASH0] = brightness;
-	schedule_work_on(0, &pchip->work[ID_FLASH0]);
+	queue_work(lm3644_wq, &pchip->work[ID_FLASH0]);
 }
 
 /* flash1 brightness control */
 static void lm3644_deferred_flash1_brightness_set(struct work_struct *work)
 {
 	struct lm3644 *pchip = container_of(work, struct lm3644, work[ID_FLASH1]);
-
-	if ( lm3644_power_up(pchip) < 0 )
-		return;
-
 	if (regmap_update_bits(pchip->regmap,
 			       REG_FLASH_LED1_BR, 0x7f,
 			       pchip->brightness[ID_FLASH1]))
@@ -393,7 +376,7 @@ static void lm3644_flash1_brightness_set(struct led_classdev *cdev,
 	struct lm3644 *pchip =
 	    container_of(cdev, struct lm3644, cdev[ID_FLASH1]);
 	pchip->brightness[ID_FLASH1] = brightness;
-	schedule_work_on(0, &pchip->work[ID_FLASH1]);
+	queue_work(lm3644_wq, &pchip->work[ID_FLASH1]);
 }
 
 struct lm3644_devices {
@@ -485,7 +468,6 @@ static size_t lm3644_ctrl(struct device *dev,
 	struct lm3644 *pchip;
 	enum lm3644_cmd_id icnt;
 	int tout, rval;
-	int rc;
 
 	if (!dev) {
 		pr_err("%s: Illegal argument: dev must not be null.\n", __func__);
@@ -497,18 +479,11 @@ static size_t lm3644_ctrl(struct device *dev,
 	}
 	pchip = dev_get_drvdata(dev->parent);
 
-	if ( (rc = lm3644_power_up(pchip)) < 0) {
-		return size;
-	}
-
 	mutex_lock(&pchip->lock);
 	for (icnt = 0; icnt < CMD_MAX; icnt++) {
 		if (strncmp(buf, cmds[icnt].str, cmds[icnt].size) == 0)
 			break;
 	}
-
-	if (rval < 0)
-		goto lm3644_ctrl_power_error;
 
 	switch (dfid) {
 		/* led 0 enable */
@@ -627,7 +602,6 @@ static size_t lm3644_ctrl(struct device *dev,
 		break;
 	}
 	lm3644_read_flag(pchip);
-lm3644_ctrl_power_error:
 	mutex_unlock(&pchip->lock);
 	return size;
 }
@@ -859,8 +833,6 @@ static int lm3644_probe(struct platform_device *pdev)
 
 	pchip->dev = &pdev->dev;
 
-	lm3644_power_init(pchip);
-
 	pchip->i2c_client.addr_type = MSM_CAMERA_I2C_BYTE_ADDR;
 	pchip->i2c_client.cci_client = devm_kzalloc(&pdev->dev, sizeof(
 		struct msm_camera_cci_client), GFP_KERNEL);
@@ -908,13 +880,18 @@ static int lm3644_probe(struct platform_device *pdev)
 	dev_info(pchip->dev, "lm3644 leds  i2c_slave addr: 0x%x, cci_i2c_master: %u\n",
 		cci_client->sid, cci_client->cci_i2c_master);
 
-
 	pchip->regmap = devm_regmap_init_msm_camera_i2c(pdev, &lm3644_regmap);
 	if (IS_ERR(pchip->regmap)) {
 		rval = PTR_ERR(pchip->regmap);
 		dev_err(&pdev->dev, "Failed to allocate register map: %d\n",
 			rval);
 		return rval;
+	}
+
+	lm3644_wq = alloc_workqueue("lm3644_wq", WQ_HIGHPRI|WQ_NON_REENTRANT|WQ_UNBOUND, 1);
+
+	if (lm3644_wq == NULL) {
+		return -ENOMEM;
 	}
 
 	mutex_init(&pchip->lock);
@@ -932,6 +909,7 @@ static int lm3644_probe(struct platform_device *pdev)
 		return rval;
 	}
 
+	_pchip = pchip;
 	dev_info(pchip->dev, "lm3644 leds initialized\n");
 	return 0;
 }
@@ -956,7 +934,6 @@ static int __init lm3644_init_module(void)
 	CDBG("%s:\n",__func__);
 	return platform_driver_register(&lm3644_platform_data_driver);
 }
-
 
 module_init(lm3644_init_module);
 MODULE_LICENSE("GPL v2");
