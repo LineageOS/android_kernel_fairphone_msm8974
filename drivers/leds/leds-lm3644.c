@@ -761,13 +761,32 @@ static const struct regmap_config lm3644_regmap = {
 	.max_register = 0xff,
 };
 
+static int lm3644_fp_cam_module_detect(void)
+{
+	switch (fp_cam_module) {
+	case FP_NO_CAM_MODULE:
+		return -EPROBE_DEFER;
+	case FP_CAM_MODULE_1:
+		return -ENODEV;
+	case FP_CAM_MODULE_2:
+		return 0;
+	default:
+		pr_err("%s: Invalid value from EEPROM: %d\n", __func__, fp_cam_module);
+		return -EINVAL;
+	}
+}
+
 static int lm3644_probe(struct platform_device *pdev)
 {
 	struct msm_camera_cci_client *cci_client = NULL;
 	struct lm3644 *pchip;
 	int rval;
 	struct device_node *of_node = pdev->dev.of_node;
-	
+
+	rval = lm3644_fp_cam_module_detect();
+	if (rval < 0)
+		return rval;
+
 	pchip = devm_kzalloc(&pdev->dev, sizeof(struct lm3644), GFP_KERNEL);
 	if (!pchip)
 		return -ENOMEM;
