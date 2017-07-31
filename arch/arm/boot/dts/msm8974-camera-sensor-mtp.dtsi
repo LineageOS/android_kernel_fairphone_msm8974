@@ -152,7 +152,7 @@ eeprom1: qcom,eeprom@a0 {
             "flash0";
           linux,name = "flash0";
           qcom,max-current = <92>;
-          qcom,current = <86>;
+          qcom,current = <12>;
         };
 
         lm3644_flash1: qcom,flash_1 {
@@ -162,7 +162,7 @@ eeprom1: qcom,eeprom@a0 {
           qcom,id = <2>;
           linux,name = "flash1";
           qcom,max-current = <92>;
-          qcom,current = <86>;
+          qcom,current = <20>;
         };
 
         lm3644_torch0: qcom,flash_torch0 {
@@ -171,7 +171,7 @@ eeprom1: qcom,eeprom@a0 {
           label = "flash";
           linux,name = "torch0";
           qcom,max-current = <127>;
-          qcom,current = <127>;
+          qcom,current = <9>;
         };
 
         lm3644_torch1: qcom,flash_torch1 {
@@ -180,7 +180,7 @@ eeprom1: qcom,eeprom@a0 {
           label = "flash";
           linux,name = "torch1";
           qcom,max-current = <127>;
-          qcom,current = <127>;
+          qcom,current = <15>;
         };
     };
 
