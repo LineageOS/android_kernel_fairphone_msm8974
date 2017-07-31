@@ -6,6 +6,10 @@ obj-$(CONFIG_LEDS_TRIGGERS)		+= led-triggers.o
 
 ccflags-$(CONFIG_LEDS_QPNP) += -Idrivers/media/platform/msm/camera_v2/
 
+ccflags-$(CONFIG_LEDS_LM3644) += -Idrivers/media/platform/msm/camera_v2/
+ccflags-$(CONFIG_LEDS_LM3644) += -Idrivers/media/platform/msm/camera_v2/sensor/cci
+ccflags-$(CONFIG_LEDS_LM3644) += -Idrivers/media/platform/msm/camera_v2/sensor/io
+
 # LED Platform Drivers
 obj-$(CONFIG_LEDS_88PM860X)		+= leds-88pm860x.o
 obj-$(CONFIG_LEDS_ATMEL_PWM)		+= leds-atmel-pwm.o
