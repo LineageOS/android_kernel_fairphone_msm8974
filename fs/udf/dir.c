@@ -167,6 +167,8 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 									UDF_NAME_LEN);
 			dt_type = DT_UNKNOWN;
 		}
+		if (!flen)
+			continue;
 
 		if (flen && filldir(dirent, fname, flen, filp->f_pos,
 				    iblock, dt_type) < 0)
