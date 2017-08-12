@@ -170,7 +170,7 @@ static int spmi_dfs_open(struct spmi_ctrl_data *ctrl_data, struct file *file)
 	trans->ctrl = ctrl_data->ctrl;
 	trans->offset = trans->addr;
 	mutex_init(&trans->spmi_dfs_lock);
- 
+
 	file->private_data = trans;
 	return 0;
 }
@@ -485,7 +485,7 @@ static ssize_t spmi_dfs_reg_write(struct file *file, const char __user *buf,
 
 	trans = file->private_data;
 	offset = trans->offset;
- 
+
 	/* Make a copy of the user data */
 	kbuf = kmalloc(count + 1, GFP_KERNEL);
 	if (!kbuf) {

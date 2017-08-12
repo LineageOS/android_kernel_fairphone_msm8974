@@ -2507,7 +2507,7 @@ static int venus_hfi_session_clean(void *session)
 	}
 	sess_close = session;
 	device = sess_close->device;
-	dprintk(VIDC_DBG, "deleted the session: 0x%p",
+	dprintk(VIDC_DBG, "deleted the session: 0x%pK",
 			sess_close);
 	mutex_lock(&device->session_lock);
 	list_del(&sess_close->list);
@@ -3800,7 +3800,7 @@ static int venus_hfi_get_fw_info(void *dev, struct hal_fw_info *fw_info)
 
 	if (!device|| !fw_info) {
 		dprintk(VIDC_ERR,
-			 "%s Invalid paramter: device = %p fw_info = %p\n",
+			 "%s Invalid paramter: device = %pK fw_info = %p\n",
 			__func__, device, fw_info);
 		return -EINVAL;
 	}

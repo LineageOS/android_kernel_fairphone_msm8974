@@ -36,7 +36,6 @@
 #include "qcedevi.h"
 #include "qce.h"
 
-
 #define CACHE_LINE_SIZE 32
 #define CE_SHA_BLOCK_SIZE SHA256_BLOCK_SIZE
 #define U32_MAX (~(__u32)0)
@@ -806,7 +805,6 @@ static int qcedev_sha_update(struct qcedev_async_req *qcedev_areq,
 		return -EINVAL;
 	}
 
-
 	if (qcedev_areq->sha_op_req.data_len > QCE_MAX_OPER_DATA) {
 
 		struct	qcedev_sha_op_req *saved_req;
@@ -965,7 +963,6 @@ static int qcedev_hash_cmac(struct qcedev_async_req *qcedev_areq,
 	uint8_t *k_buf_src = NULL;
 
 	total = qcedev_areq->sha_op_req.data_len;
-
 
 	if (copy_from_user(&handle->sha_ctxt.authkey[0],
 				(void __user *)qcedev_areq->sha_op_req.authkey,
@@ -2168,7 +2165,8 @@ static ssize_t _debug_stats_read(struct file *file, char __user *buf,
 
 	len = _disp_stats(qcedev);
 
-	rc = simple_read_from_buffer((void __user *) buf, len,
+	if (len <= count)
+		rc = simple_read_from_buffer((void __user *) buf, len,
 			ppos, (void *) _debug_read_buf, len);
 
 	return rc;

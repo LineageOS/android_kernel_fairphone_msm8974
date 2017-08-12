@@ -502,7 +502,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&sta->ps_tx_buf[ac], tx->skb);
 		spin_unlock(&sta->ps_lock);
- 
+
 		if (!timer_pending(&local->sta_cleanup))
 			mod_timer(&local->sta_cleanup,
 				  round_jiffies(jiffies +

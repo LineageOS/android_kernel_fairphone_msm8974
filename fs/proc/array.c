@@ -169,6 +169,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	struct task_struct *leader = NULL;
 
 	rcu_read_lock();
+
 	if (pid_alive(p)) {
 		struct task_struct *tracer = ptrace_parent(p);
 		if (tracer)

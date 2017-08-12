@@ -3,6 +3,8 @@
 #
 
 # Each configuration option enables a list of files.
+ccflags-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_I2C) += -Idrivers/video/msm/mdss/
+ccflags-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI_DEV) += -Idrivers/video/msm/mdss/
 
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_I2C) += synaptics_dsx_i2c.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_SPI) += synaptics_dsx_spi.o

@@ -193,11 +193,10 @@ struct oabi_flock64 {
 	pid_t	l_pid;
 } __attribute__ ((packed,aligned(4)));
 
-//asmlinkage long sys_oabi_fcntl64(unsigned int fd, unsigned int cmd,
 static long do_locks(unsigned int fd, unsigned int cmd,
-				 unsigned long arg)
-{
-	struct flock64 kernel;
+ 				 unsigned long arg)
+ {
+ 	struct flock64 kernel;
 	struct oabi_flock64 user;
 	mm_segment_t fs;
 	long ret;
@@ -206,7 +205,7 @@ static long do_locks(unsigned int fd, unsigned int cmd,
 			   sizeof(user)))
 		return -EFAULT;
 	kernel.l_type	= user.l_type;
-    kernel.l_whence	= user.l_whence;
+	kernel.l_whence	= user.l_whence;
 	kernel.l_start	= user.l_start;
 	kernel.l_len	= user.l_len;
 	kernel.l_pid	= user.l_pid;
@@ -218,7 +217,7 @@ static long do_locks(unsigned int fd, unsigned int cmd,
 
 	if (!ret && (cmd == F_GETLK64 || cmd == F_OFD_GETLK)) {
 		user.l_type	= kernel.l_type;
-    	user.l_whence	= kernel.l_whence;
+		user.l_whence	= kernel.l_whence;
 		user.l_start	= kernel.l_start;
 		user.l_len	= kernel.l_len;
 		user.l_pid	= kernel.l_pid;
@@ -228,7 +227,7 @@ static long do_locks(unsigned int fd, unsigned int cmd,
 	}
 	return ret;
 }
- 
+
 asmlinkage long sys_oabi_fcntl64(unsigned int fd, unsigned int cmd,
 				 unsigned long arg)
 {
@@ -236,8 +235,9 @@ asmlinkage long sys_oabi_fcntl64(unsigned int fd, unsigned int cmd,
 	case F_GETLK64:
 	case F_SETLK64:
 	case F_SETLKW64:
-			return do_locks(fd, cmd, arg);
-    default:
+		return do_locks(fd, cmd, arg);
+
+	default:
 		return sys_fcntl64(fd, cmd, arg);
 	}
 }

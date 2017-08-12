@@ -543,6 +543,7 @@ int kgsl_context_init(struct kgsl_device_private *dev_priv,
 		}
 
 		write_lock(&device->context_lock);
+		/* Allocate the slot but don't put a pointer in it yet */
 		ret = idr_get_new_above(&device->context_idr, NULL, 1, &id);
 		write_unlock(&device->context_lock);
 

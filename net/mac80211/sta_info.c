@@ -989,7 +989,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	ieee80211_add_pending_skbs_fn(local, &pending, clear_sta_ps_flags, sta);
 	spin_unlock(&sta->ps_lock);
- 
+
 	local->total_ps_buffered -= buffered;
 
 	sta_info_recalc_tim(sta);

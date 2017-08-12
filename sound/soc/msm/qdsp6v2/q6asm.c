@@ -3323,7 +3323,6 @@ static int q6asm_memory_map_regions(struct audio_client *ac, int dir,
 			+ (sizeof(struct avs_shared_map_region_payload)
 							* bufcnt_t);
 
-
 	if (bufcnt > (UINT_MAX / sizeof(struct asm_buffer_node))) {
 		pr_err("%s: Unsigned Integer Overflow. bufcnt = %u\n",
 				__func__, bufcnt);
