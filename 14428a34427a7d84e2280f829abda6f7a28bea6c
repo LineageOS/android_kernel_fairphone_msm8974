@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "41458b32_aca2d98e",
+        "filename": "drivers/media/platform/msm/vidc/msm_vidc_debug.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 73,
+      "author": {
+        "id": 3917
+      },
+      "writtenOn": "2017-08-13T09:37:16Z",
+      "side": 1,
+      "message": "whitespace",
+      "range": {
+        "startLine": 73,
+        "startChar": 0,
+        "endLine": 73,
+        "endChar": 4
+      },
+      "revId": "14428a34427a7d84e2280f829abda6f7a28bea6c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "08293dea_1be2d924",
+        "filename": "drivers/media/platform/msm/vidc/msm_vidc_debug.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 81,
+      "author": {
+        "id": 3917
+      },
+      "writtenOn": "2017-08-13T09:37:16Z",
+      "side": 1,
+      "message": "whitespace?",
+      "range": {
+        "startLine": 81,
+        "startChar": 0,
+        "endLine": 81,
+        "endChar": 4
+      },
+      "revId": "14428a34427a7d84e2280f829abda6f7a28bea6c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
