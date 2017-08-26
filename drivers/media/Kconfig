@@ -128,4 +128,10 @@ source "drivers/media/radio/Kconfig"
 
 source "drivers/media/dvb/Kconfig"
 
+#
+# Multimedia Video device configuration
+#
+
+source "drivers/media/i2c/Kconfig"
+
 endif # MEDIA_SUPPORT

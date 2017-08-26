@@ -16,6 +16,8 @@
 #include "msm_camera_i2c_mux.h"
 #include "msm_cci.h"
 
+#include "detect/fp_cam_detect.h"
+
 /*#define CONFIG_MSM_CAMERA_DT_DEBUG*/
 #undef CDBG
 #ifdef CONFIG_MSM_CAMERA_DT_DEBUG
@@ -889,6 +891,23 @@ int msm_camera_get_dt_vreg_data(struct device_node *of_node,
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		goto ERROR2;
 	}
+
+        if (fp_cam_module == FP_CAM_MODULE_1) {
+            rc = of_property_read_u32_array(of_node, "fp,cam-vreg-min-voltage,cam_module_1",
+                vreg_array, count);
+            if (!rc) {
+                CDBG("overriding with fp,cam-vreg-min-voltage,cam_module_1\n");
+            }
+        }
+
+        if (fp_cam_module == FP_CAM_MODULE_2) {
+            rc = of_property_read_u32_array(of_node, "fp,cam-vreg-min-voltage,cam_module_2",
+                vreg_array, count);
+            if (!rc) {
+                CDBG("overriding with fp,cam-vreg-min-voltage,cam_module_2\n");
+            }
+        }
+
 	for (i = 0; i < count; i++) {
 		vreg[i].min_voltage = vreg_array[i];
 		CDBG("%s cam_vreg[%d].min_voltage = %d\n", __func__,
@@ -901,6 +920,22 @@ int msm_camera_get_dt_vreg_data(struct device_node *of_node,
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		goto ERROR2;
 	}
+        if (fp_cam_module == FP_CAM_MODULE_1) {
+            rc = of_property_read_u32_array(of_node, "fp,cam-vreg-max-voltage,cam_module_1",
+                vreg_array, count);
+            if (!rc) {
+                CDBG("overriding with fp,cam-vreg-max-voltage,cam_module_1\n");
+            }
+        }
+
+        if (fp_cam_module == FP_CAM_MODULE_2) {
+            rc = of_property_read_u32_array(of_node, "fp,cam-vreg-max-voltage,cam_module_2",
+                vreg_array, count);
+            if (!rc) {
+                CDBG("overriding with fp,cam-vreg-max-voltage,cam_module_2\n");
+            }
+        }
+
 	for (i = 0; i < count; i++) {
 		vreg[i].max_voltage = vreg_array[i];
 		CDBG("%s cam_vreg[%d].max_voltage = %d\n", __func__,

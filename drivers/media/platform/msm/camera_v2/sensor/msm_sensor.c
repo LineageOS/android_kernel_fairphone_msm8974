@@ -19,6 +19,8 @@
 #include <mach/rpm-regulator.h>
 #include <mach/rpm-regulator-smd.h>
 #include <linux/regulator/consumer.h>
+#include "lm3644_pm8941_power.h"
+#include "detect/fp_cam_detect.h"
 
 /*#define CONFIG_MSMB_CAMERA_DEBUG*/
 #undef CDBG
@@ -945,6 +947,7 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 	}
 
 	case CFG_POWER_UP:
+
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_DOWN) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);
@@ -967,6 +970,12 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		} else {
 			rc = -EFAULT;
 		}
+
+		if (fp_cam_module == FP_CAM_MODULE_2) {
+			if ( (rc = lm3644_pm8941_power_up()) ) {
+				break;
+			}
+		}	
 		break;
 
 	case CFG_POWER_DOWN:
@@ -994,7 +1003,9 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		} else {
 			rc = -EFAULT;
 		}
-		break;
+		if (fp_cam_module == FP_CAM_MODULE_2) {
+				rc = lm3644_pm8941_power_down();
+		}		break;
 
 	case CFG_SET_STOP_STREAM_SETTING: {
 		struct msm_camera_i2c_reg_setting *stop_setting =

@@ -356,7 +356,7 @@
 		status = "okay";
 		pm8941_l17: regulator-l17 {
 			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
+			regulator-max-microvolt = <3000000>;
 			qcom,init-voltage = <2850000>;
 			status = "okay";
 		};

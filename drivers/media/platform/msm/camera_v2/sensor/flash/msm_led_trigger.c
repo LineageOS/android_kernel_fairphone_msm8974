@@ -15,6 +15,8 @@
 
 #include <linux/module.h>
 #include "msm_led_flash.h"
+#include "detect/fp_cam_detect.h"
+#include "lm3644_pm8941_power.h"
 
 #define FLASH_NAME "camera-led-flash"
 
@@ -28,6 +30,7 @@
 
 extern int32_t msm_led_torch_create_classdev(
 				struct platform_device *pdev, void *data);
+static int32_t msm_led_trigger_probe(struct platform_device *pdev);
 
 static enum flash_type flashtype;
 static struct msm_led_flash_ctrl_t fctrl;
@@ -43,6 +46,16 @@ static int32_t msm_led_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
 	*subdev_id = fctrl->pdev->id;
 	CDBG("%s:%d subdev_id %d\n", __func__, __LINE__, *subdev_id);
 	return 0;
+}
+
+static void msm_led_trigger_reset_leds(struct msm_led_flash_ctrl_t *fctrl)
+{
+	uint32_t i;
+	for (i = 0; i < fctrl->num_sources; i++)
+		if (fctrl->flash_trigger[i])
+			led_trigger_event(fctrl->flash_trigger[i], 0);
+	if (fctrl->torch_trigger)
+		led_trigger_event(fctrl->torch_trigger, 0);
 }
 
 static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
@@ -104,12 +117,13 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		break;
 
 	case MSM_CAMERA_LED_INIT:
+		CDBG("%s: MSM_CAMERA_LED_INIT\n", __func__);
+		msm_led_trigger_reset_leds(fctrl);
+		break;
+
 	case MSM_CAMERA_LED_RELEASE:
-		for (i = 0; i < fctrl->num_sources; i++)
-			if (fctrl->flash_trigger[i])
-				led_trigger_event(fctrl->flash_trigger[i], 0);
-		if (fctrl->torch_trigger)
-			led_trigger_event(fctrl->torch_trigger, 0);
+		CDBG("%s: MSM_CAMERA_LED_RELEASE\n", __func__);
+		msm_led_trigger_reset_leds(fctrl);
 		break;
 
 	default:
@@ -133,7 +147,22 @@ static struct platform_driver msm_led_trigger_driver = {
 		.owner = THIS_MODULE,
 		.of_match_table = msm_led_trigger_dt_match,
 	},
+	.probe = msm_led_trigger_probe,
 };
+
+static int msm_led_get_property_name(struct device_node *of_node,
+		char *property_name, int max_size, const char *type)
+{
+	int rc;
+
+	rc = snprintf(property_name, max_size,
+			"fp2,%s-source,cam-module%d", type, fp_cam_module);
+
+	if (rc < 0 || !of_get_property(of_node, property_name, 0)) {
+		rc = snprintf(property_name, max_size, "qcom,%s-source", type);
+	}
+	return rc;
+}
 
 static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 {
@@ -142,8 +171,15 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 	struct device_node *flash_src_node = NULL;
 	uint32_t count = 0;
 	struct led_trigger *temp = NULL;
+	char property_name[30];
 
 	CDBG("called\n");
+
+	if (fp_cam_module == FP_NO_CAM_MODULE) {
+		CDBG("%s: defer until FP2 cam module ID has been determined.\n",
+				__func__);
+		return -EPROBE_DEFER;
+	}
 
 	if (!of_node) {
 		pr_err("of_node NULL\n");
@@ -167,7 +203,10 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_get_property(of_node, "qcom,flash-source", &count)) {
+	rc = msm_led_get_property_name(of_node, property_name,
+			ARRAY_SIZE(property_name), "flash");
+
+	if (of_get_property(of_node, property_name, &count)) {
 		count /= sizeof(uint32_t);
 		CDBG("count %d\n", count);
 		if (count > MAX_LED_TRIGGERS) {
@@ -177,7 +216,7 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 		fctrl.num_sources = count;
 		for (i = 0; i < count; i++) {
 			flash_src_node = of_parse_phandle(of_node,
-				"qcom,flash-source", i);
+				property_name, i);
 			if (!flash_src_node) {
 				pr_err("flash_src_node NULL\n");
 				continue;
@@ -226,7 +265,10 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 		}
 
 		/* Torch source */
-		flash_src_node = of_parse_phandle(of_node, "qcom,torch-source",
+		msm_led_get_property_name(of_node, property_name,
+				ARRAY_SIZE(property_name), "torch");
+
+		flash_src_node = of_parse_phandle(of_node, property_name,
 			0);
 		if (flash_src_node) {
 			rc = of_property_read_string(flash_src_node,
@@ -284,8 +326,7 @@ torch_failed:
 static int __init msm_led_trigger_add_driver(void)
 {
 	CDBG("called\n");
-	return platform_driver_probe(&msm_led_trigger_driver,
-		msm_led_trigger_probe);
+	return platform_driver_register(&msm_led_trigger_driver);
 }
 
 static struct msm_flash_fn_t msm_led_trigger_func_tbl = {
