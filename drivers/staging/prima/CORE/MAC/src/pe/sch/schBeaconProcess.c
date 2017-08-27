@@ -469,8 +469,7 @@ static void __schBeaconProcessForSession( tpAniSirGlobal      pMac,
             sendProbeReq = TRUE;
     }
 
-    if (psessionEntry->htCapability && pBeacon->HTInfo.present &&
-                                 (!LIM_IS_IBSS_ROLE(psessionEntry)))
+    if ( psessionEntry->htCapability && pBeacon->HTInfo.present )
     {
         limUpdateStaRunTimeHTSwitchChnlParams( pMac, &pBeacon->HTInfo, bssIdx,psessionEntry);
     }
