@@ -751,25 +751,25 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations ashmem_fops = {
-        .owner = THIS_MODULE,
-        .open = ashmem_open,
-        .release = ashmem_release,
-        .read = ashmem_read,
-        .llseek = ashmem_llseek,
-        .mmap = ashmem_mmap,
-        .unlocked_ioctl = ashmem_ioctl,
-        .compat_ioctl = ashmem_ioctl,
+	.owner = THIS_MODULE,
+	.open = ashmem_open,
+	.release = ashmem_release,
+	.read = ashmem_read,
+	.llseek = ashmem_llseek,
+	.mmap = ashmem_mmap,
+	.unlocked_ioctl = ashmem_ioctl,
+	.compat_ioctl = ashmem_ioctl,
 };
 
 static struct miscdevice ashmem_misc = {
-        .minor = MISC_DYNAMIC_MINOR,
-        .name = "ashmem",
-        .fops = &ashmem_fops,
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "ashmem",
+	.fops = &ashmem_fops,
 };
 
 static int is_ashmem_file(struct file *file)
 {
-	return (file->f_op == &ashmem_fops);
+	return file->f_op == &ashmem_fops;
 }
 
 int get_ashmem_file(int fd, struct file **filp, struct file **vm_file,

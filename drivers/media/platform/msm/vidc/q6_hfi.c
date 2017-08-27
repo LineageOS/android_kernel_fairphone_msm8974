@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1380,7 +1380,7 @@ int q6_hfi_initialize(struct hfi_device *hdev, u32 device_id,
 	int rc = 0;
 
 	if (!hdev || !res || !callback) {
-		dprintk(VIDC_ERR, "Invalid params: %pk %pK %pK",
+		dprintk(VIDC_ERR, "Invalid params: %pK %pK %pK",
 				hdev, res, callback);
 		rc = -EINVAL;
 		goto err_hfi_init;

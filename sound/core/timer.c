@@ -1183,7 +1183,7 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 		tu->tstamp = *tstamp;
 	if ((tu->filter & (1 << event)) == 0 || !tu->tread)
 		return;
-    memset(&r1, 0, sizeof(r1));
+	memset(&r1, 0, sizeof(r1));
 	r1.event = event;
 	r1.tstamp = *tstamp;
 	r1.val = resolution;
@@ -1218,7 +1218,7 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	}
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) &&
 	    tu->last_resolution != resolution) {
-        memset(&r1, 0, sizeof(r1));
+		memset(&r1, 0, sizeof(r1));
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;
 		r1.tstamp = tstamp;
 		r1.val = resolution;
@@ -1287,10 +1287,10 @@ static int snd_timer_user_release(struct inode *inode, struct file *file)
 	if (file->private_data) {
 		tu = file->private_data;
 		file->private_data = NULL;
-                mutex_lock(&tu->ioctl_lock);
+		mutex_lock(&tu->ioctl_lock);
 		if (tu->timeri)
 			snd_timer_close(tu->timeri);
-                mutex_unlock(&tu->ioctl_lock);
+		mutex_unlock(&tu->ioctl_lock);
 		kfree(tu->queue);
 		kfree(tu->tqueue);
 		kfree(tu);
@@ -1572,7 +1572,7 @@ static int snd_timer_user_tselect(struct file *file,
 	}
 
       __err:
-      	return err;
+	return err;
 }
 
 static int snd_timer_user_info(struct file *file,
@@ -1684,11 +1684,11 @@ static int snd_timer_user_params(struct file *file,
 	tu->qhead = tu->qtail = tu->qused = 0;
 	if (tu->timeri->flags & SNDRV_TIMER_IFLG_EARLY_EVENT) {
 		if (tu->tread) {
-            struct snd_timer_tread tread;
-            memset(&tread, 0, sizeof(tread));
-            tread.event = SNDRV_TIMER_EVENT_EARLY;
-            tread.tstamp.tv_sec = 0;
-            tread.tstamp.tv_nsec = 0;
+			struct snd_timer_tread tread;
+			memset(&tread, 0, sizeof(tread));
+			tread.event = SNDRV_TIMER_EVENT_EARLY;
+			tread.tstamp.tv_sec = 0;
+			tread.tstamp.tv_nsec = 0;
 			tread.val = 0;
 			snd_timer_user_append_to_tqueue(tu, &tread);
 		} else {
@@ -1802,7 +1802,7 @@ static long __snd_timer_user_ioctl(struct file *file, unsigned int cmd,
 	{
 		int xarg;
 
-		if (tu->timeri)		/* too late */
+		if (tu->timeri)	/* too late */
 			return -EBUSY;
 		if (get_user(xarg, p))
 			return -EFAULT;

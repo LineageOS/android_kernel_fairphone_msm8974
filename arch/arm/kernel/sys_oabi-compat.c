@@ -194,9 +194,9 @@ struct oabi_flock64 {
 } __attribute__ ((packed,aligned(4)));
 
 static long do_locks(unsigned int fd, unsigned int cmd,
- 				 unsigned long arg)
- {
- 	struct flock64 kernel;
+				 unsigned long arg)
+{
+	struct flock64 kernel;
 	struct oabi_flock64 user;
 	mm_segment_t fs;
 	long ret;

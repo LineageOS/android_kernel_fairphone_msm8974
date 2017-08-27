@@ -880,3 +880,4 @@ void kgsl_device_snapshot_close(struct kgsl_device *device)
 	device->snapshot_faultcount = 0;
 }
 EXPORT_SYMBOL(kgsl_device_snapshot_close);
+

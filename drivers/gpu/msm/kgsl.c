@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2014,2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -319,31 +319,54 @@ EXPORT_SYMBOL(kgsl_mem_entry_destroy);
  * @process: the process that owns the memory
  * @entry: the memory entry
  *
- * @returns - 0 on succcess else error code
+ * @returns - 0 on success else error code
  *
+ * This function should be called with processes memory spinlock held
  */
 static int
 kgsl_mem_entry_track_gpuaddr(struct kgsl_process_private *process,
 				struct kgsl_mem_entry *entry)
 {
 	int ret = 0;
+
 	assert_spin_locked(&process->mem_lock);
 	/*
 	 * If cpu=gpu map is used then caller needs to set the
 	 * gpu address
 	 */
 	if (kgsl_memdesc_use_cpu_map(&entry->memdesc)) {
-	/* cpu map flag is enabled. do nothing */
+		/* cpu map flag is enabled. do nothing */
 	} else {
 		if (entry->memdesc.gpuaddr) {
 			WARN_ONCE(1, "gpuaddr assigned w/o holding memory lock\n");
 			ret = -EINVAL;
- 			goto done;
-            }
-        ret = kgsl_mmu_get_gpuaddr(process->pagetable, &entry->memdesc);
-    }
+			goto done;
+		}
+
+		ret = kgsl_mmu_get_gpuaddr(process->pagetable, &entry->memdesc);
+	}
+
 done:
 	return ret;
+}
+
+/**
+ * kgsl_mem_entry_untrack_gpuaddr() - Untrack memory that is previously tracked
+ * process - Pointer to process private to which memory belongs
+ * entry - Memory entry to untrack
+ *
+ * Function just does the opposite of kgsl_mem_entry_track_gpuaddr. Needs to be
+ * called with processes spin lock held
+ */
+static void
+kgsl_mem_entry_untrack_gpuaddr(struct kgsl_process_private *process,
+				struct kgsl_mem_entry *entry)
+{
+	assert_spin_locked(&process->mem_lock);
+	if (entry->memdesc.gpuaddr) {
+		kgsl_mmu_put_gpuaddr(process->pagetable, &entry->memdesc);
+		rb_erase(&entry->node, &entry->priv->mem_rb);
+	}
 }
 
 static void kgsl_mem_entry_commit_mem_list(struct kgsl_process_private *process,
@@ -388,25 +411,6 @@ static void kgsl_mem_entry_commit_process(struct kgsl_process_private *process,
 }
 
 /**
- * kgsl_mem_entry_untrack_gpuaddr() - Untrack memory that is previously tracked
- * process - Pointer to process private to which memory belongs
- * entry - Memory entry to untrack
- *
- * Function just does the opposite of kgsl_mem_entry_track_gpuaddr. Needs to be
- * called with processes spin lock held
- */
-static void
-kgsl_mem_entry_untrack_gpuaddr(struct kgsl_process_private *process,
-				struct kgsl_mem_entry *entry)
-{
-	assert_spin_locked(&process->mem_lock);
-	if (entry->memdesc.gpuaddr) {
-		kgsl_mmu_put_gpuaddr(process->pagetable, &entry->memdesc);
-		rb_erase(&entry->node, &entry->priv->mem_rb);
-	}
-}
-
-/**
  * kgsl_mem_entry_attach_process - Attach a mem_entry to its owner process
  * @entry: the memory entry
  * @process: the owner process
@@ -436,7 +440,8 @@ kgsl_mem_entry_attach_process(struct kgsl_mem_entry *entry,
 		}
 
 		spin_lock(&process->mem_lock);
-		ret = idr_get_new_above(&process->mem_idr, entry, 1,
+		/* Allocate the ID but don't attach the pointer just yet */
+		ret = idr_get_new_above(&process->mem_idr, NULL, 1,
 					&entry->id);
 		spin_unlock(&process->mem_lock);
 
@@ -3179,7 +3184,8 @@ static long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 	kgsl_process_add_stats(private, entry->memtype, param->len);
 
 	trace_kgsl_mem_map(entry, param->fd);
-    kgsl_mem_entry_commit_process(private, entry);
+
+	kgsl_mem_entry_commit_process(private, entry);
 
 	/* put the extra refcount for kgsl_mem_entry_create() */
 	kgsl_mem_entry_put(entry);
@@ -3472,7 +3478,8 @@ kgsl_ioctl_gpumem_alloc(struct kgsl_device_private *dev_priv,
 	param->gpuaddr = entry->memdesc.gpuaddr;
 	param->size = entry->memdesc.size;
 	param->flags = entry->memdesc.flags;
-    kgsl_mem_entry_commit_process(private, entry);
+
+	kgsl_mem_entry_commit_process(private, entry);
 
 	/* put the extra refcount for kgsl_mem_entry_create() */
 	kgsl_mem_entry_put(entry);
@@ -3512,7 +3519,8 @@ kgsl_ioctl_gpumem_alloc_id(struct kgsl_device_private *dev_priv,
 	param->size = entry->memdesc.size;
 	param->mmapsize = kgsl_memdesc_mmapsize(&entry->memdesc);
 	param->gpuaddr = entry->memdesc.gpuaddr;
-    kgsl_mem_entry_commit_process(private, entry);
+
+	kgsl_mem_entry_commit_process(private, entry);
 
 	/* put the extra refcount for kgsl_mem_entry_create() */
 	kgsl_mem_entry_put(entry);
@@ -4084,7 +4092,7 @@ kgsl_get_unmapped_area(struct file *file, unsigned long addr,
 				kgsl_mem_entry_untrack_gpuaddr(private, entry);
 				spin_unlock(&private->mem_lock);
 				ret = ret_val;
-            } else {
+			} else {
 				/* Insert mem entry in mem_rb tree */
 				spin_lock(&private->mem_lock);
 				kgsl_mem_entry_commit_mem_list(private, entry);

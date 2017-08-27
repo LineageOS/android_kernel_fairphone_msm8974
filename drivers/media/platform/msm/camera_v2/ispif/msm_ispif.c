@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -308,19 +308,19 @@ static void msm_ispif_sel_csid_core(struct ispif_device *ispif,
 		break;
 	case RDI0:
 		data &= ~(BIT(5) | BIT(4));
-		data |= (((uint32_t)csid) << 4);
+		data |= (uint32_t)(csid << 4);
 		break;
 	case PIX1:
 		data &= ~(BIT(9) | BIT(8));
-		data |= (((uint32_t) csid) << 8);
+		data |= (uint32_t)(csid << 8);
 		break;
 	case RDI1:
 		data &= ~(BIT(13) | BIT(12));
-		data |= (((uint32_t) csid) << 12);
+		data |= (uint32_t)(csid << 12);
 		break;
 	case RDI2:
 		data &= ~(BIT(21) | BIT(20));
-		data |= (((uint32_t) csid) << 20);
+		data |= (uint32_t)(csid << 20);
 		break;
 	}
 
@@ -399,7 +399,7 @@ static void msm_ispif_enable_intf_cids(struct ispif_device *ispif,
 	if (enable)
 		data |= (uint32_t)cid_mask;
 	else
-		data &= ~((uint32_t) cid_mask);
+		data &= ~((uint32_t)cid_mask);
 	msm_camera_io_w_mb(data, ispif->base + intf_addr);
 }
 
@@ -949,14 +949,13 @@ static int msm_ispif_set_vfe_info(struct ispif_device *ispif,
 {
 	if (!vfe_info || (vfe_info->num_vfe <= 0) ||
 		((uint32_t)(vfe_info->num_vfe) > ispif->hw_num_isps)) {
-		pr_err("Invalid VFE info: %pK %d\n", vfe_info,
-			   (vfe_info ? vfe_info->num_vfe:0));
- 		return -EINVAL;
+		pr_err("Invalid VFE info: %p %d\n", vfe_info,
+			(vfe_info ? vfe_info->num_vfe:0));
+		return -EINVAL;
 	}
 
 	memcpy(&ispif->vfe_info, vfe_info, sizeof(struct msm_ispif_vfe_info));
-	if (ispif->vfe_info.num_vfe > ispif->hw_num_isps)
-		return -EINVAL;
+
 	return 0;
 }
 
@@ -1118,6 +1117,13 @@ static long msm_ispif_subdev_ioctl(struct v4l2_subdev *sd,
 	case VIDIOC_MSM_ISPIF_CFG:
 		return msm_ispif_cmd(sd, arg);
 	case MSM_SD_SHUTDOWN: {
+		struct ispif_device *ispif =
+			(struct ispif_device *)v4l2_get_subdevdata(sd);
+		if (ispif && ispif->base) {
+			mutex_lock(&ispif->mutex);
+			msm_ispif_release(ispif);
+			mutex_unlock(&ispif->mutex);
+		}
 		return 0;
 	}
 	default:
