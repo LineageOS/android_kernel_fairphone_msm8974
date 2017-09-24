@@ -1489,6 +1489,7 @@ static ssize_t aio_setup_single_vector(int type, struct file * file, struct kioc
 
 	if (unlikely(!access_ok(!rw, kiocb->ki_buf, len)))
                 return -EFAULT;
+
 	kiocb->ki_iovec = &kiocb->ki_inline_vec;
 	kiocb->ki_iovec->iov_base = kiocb->ki_buf;
 	kiocb->ki_iovec->iov_len = bytes;
