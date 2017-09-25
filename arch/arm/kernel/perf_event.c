@@ -344,7 +344,7 @@ out:
 
 static int
 validate_event(struct pmu *pmu, struct pmu_hw_events *hw_events,
-	       struct perf_event *event)
+				struct perf_event *event)
 {
 	struct arm_pmu *armpmu;
 	struct hw_perf_event fake_event = event->hw;
@@ -362,6 +362,9 @@ validate_event(struct pmu *pmu, struct pmu_hw_events *hw_events,
 		return 0;
 
 	if (event->pmu != leader_pmu || event->state < PERF_EVENT_STATE_OFF)
+		return 1;
+
+	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
 		return 1;
 
 	armpmu = to_arm_pmu(event->pmu);
