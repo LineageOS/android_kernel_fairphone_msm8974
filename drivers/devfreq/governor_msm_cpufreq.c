@@ -15,7 +15,7 @@
 #include <mach/cpufreq.h>
 #include "governor.h"
 
-DEFINE_MUTEX(df_lock);
+static DEFINE_MUTEX(df_lock);
 static struct devfreq *df;
 
 static int devfreq_msm_cpufreq_get_freq(struct devfreq *df,
