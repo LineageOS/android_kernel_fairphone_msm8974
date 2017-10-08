@@ -357,7 +357,7 @@ static int rfcomm_sock_bind(struct socket *sock, struct sockaddr *addr, int addr
 	len = min_t(unsigned int, sizeof(sa), addr_len);
 	memcpy(&sa, addr, len);
 
-	BT_DBG("sk %p %pMR", sk, &sa.rc_bdaddr);
+	BT_DBG("sk %p %s", sk, batostr(&sa.rc_bdaddr));
 
 	lock_sock(sk);
 
@@ -514,7 +514,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
+		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 		if (sk->sk_state != BT_LISTEN) {
 			err = -EBADFD;
