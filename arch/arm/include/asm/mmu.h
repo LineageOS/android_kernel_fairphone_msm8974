@@ -35,4 +35,6 @@ typedef struct {
 
 #endif
 
+#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
+
 #endif
