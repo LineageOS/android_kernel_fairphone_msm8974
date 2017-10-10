@@ -2158,7 +2158,8 @@ static ssize_t audio_source_pcm_show(struct device *dev,
 	struct audio_source_config *config = f->config;
 
 	/* print PCM card and device numbers */
-	return sprintf(buf, "%d %d\n", config->card, config->device);
+	return snprintf(buf, PAGE_SIZE,
+			"%d %d\n", config->card, config->device);
 }
 
 static DEVICE_ATTR(pcm, S_IRUGO | S_IWUSR, audio_source_pcm_show, NULL);
@@ -2279,7 +2280,6 @@ static struct android_usb_function midi_function = {
 	.attributes	= midi_function_attributes,
 };
 #endif
-
 static struct android_usb_function *supported_functions[] = {
 	&ffs_function,
 	&mbim_function,
@@ -2589,7 +2589,7 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 	struct android_configuration *conf;
 	char *conf_str;
 	struct android_usb_function_holder *f_holder;
-	char *name;
+	char *name = NULL;
 	char buf[256], *b;
 	char aliases[256], *a;
 	int err;
@@ -2637,7 +2637,6 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 
 		while (conf_str) {
 			name = strsep(&conf_str, ",");
-			name = strsep(&b, ",");
 
 			is_ffs = 0;
 			strlcpy(aliases, dev->ffs_aliases, sizeof(aliases));
@@ -2657,17 +2656,16 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 				err = android_enable_function(dev, conf, "ffs");
 				if (err)
 					pr_err("android_usb: Cannot enable ffs (%d)",
-						err);
+										err);
 				else
 					ffs_enabled = 1;
 				continue;
 			}
+			err = android_enable_function(dev, conf, name);
+			if (err)
+				pr_err("android_usb: Cannot enable '%s' (%d)",
+						name, err);
 		}
-
-		err = android_enable_function(dev, conf, name);
-		if (err)
-			pr_err("android_usb: Cannot enable '%s' (%d)",
-							   name, err);
 	}
 
 	/* Free uneeded configurations if exists */
