@@ -1011,6 +1011,8 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	dotg->otg.phy->set_suspend = dwc3_otg_set_suspend;
 	dotg->otg.phy->set_phy_autosuspend = dwc3_otg_set_autosuspend;
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&(dotg->otg.phy->notifier));
+
 	ret = usb_set_transceiver(dotg->otg.phy);
 	if (ret) {
 		dev_err(dotg->otg.phy->dev,
