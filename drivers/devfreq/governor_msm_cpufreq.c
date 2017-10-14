@@ -57,7 +57,6 @@ static int devfreq_msm_cpufreq_ev_handler(struct devfreq *devfreq,
 			return ret;
 		}
 
-		devfreq_monitor_stop(df);
 		pr_debug("Enabled MSM CPUfreq governor\n");
 		break;
 
