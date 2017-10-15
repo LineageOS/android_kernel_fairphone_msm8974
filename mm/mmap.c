@@ -2131,23 +2131,6 @@ int expand_downwards(struct vm_area_struct *vma,
 	return error;
 }
 
-<<<<<<< HEAD
-/* enforced gap between the expanding stack and other mappings. */
-unsigned long stack_guard_gap = 256UL<<PAGE_SHIFT;
-
-static int __init cmdline_parse_stack_guard_gap(char *p)
-{
-	unsigned long val;
-	char *endptr;
-
-	val = simple_strtoul(p, &endptr, 10);
-	if (!*endptr)
-		stack_guard_gap = val << PAGE_SHIFT;
-
-	return 0;
-}
-__setup("stack_guard_gap=", cmdline_parse_stack_guard_gap);
-
 /*
  * Note how expand_stack() refuses to expand the stack all the way to
  * abut the next virtual mapping, *unless* that mapping itself is also
@@ -2159,8 +2142,6 @@ __setup("stack_guard_gap=", cmdline_parse_stack_guard_gap);
  * check_stack_guard_page()), which only allows the guard page to be
  * removed under these circumstances.
  */
-=======
->>>>>>> parent of e8a93760109... mm: larger stack guard gap, between vmas
 #ifdef CONFIG_STACK_GROWSUP
 int expand_stack(struct vm_area_struct *vma, unsigned long address)
 {
