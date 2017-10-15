@@ -552,7 +552,6 @@ unsigned long dma_alloc_from_contiguous(struct device *dev, size_t count,
 		start = pageno + mask + 1;
 	}
 
-	mutex_unlock(&cma_mutex);
 	pr_debug("%s(): returned %lx\n", __func__, pfn);
 	return pfn;
 }
