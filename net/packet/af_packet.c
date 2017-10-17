@@ -3140,7 +3140,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		}
 		release_sock(sk);
 		return ret;
-		
+
 	}
 	case PACKET_RESERVE:
 	{
