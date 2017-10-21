@@ -206,6 +206,9 @@ extern struct device_node *of_find_node_with_property(
 	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
 	     dn = of_find_node_with_property(dn, prop_name))
 
+extern int of_property_read_u32_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u32 *out_value);
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
@@ -293,6 +296,12 @@ static inline struct device_node *of_find_compatible_node(
 						const char *compat)
 {
 	return NULL;
+}
+
+static inline int of_property_read_u32_index(const struct device_node *np,
+			const char *propname, u32 index, u32 *out_value)
+{
+	return -ENOSYS;
 }
 
 static inline int of_property_read_u32_array(const struct device_node *np,
