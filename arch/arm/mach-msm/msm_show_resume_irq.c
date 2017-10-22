@@ -17,7 +17,7 @@
 
 #ifdef CONFIG_DEDUCE_WAKEUP_REASONS
 int msm_show_resume_irq_mask = 1;
-else
+#else
 int msm_show_resume_irq_mask;
 #endif
 
