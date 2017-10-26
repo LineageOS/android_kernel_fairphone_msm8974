@@ -96,10 +96,9 @@ static int synaptics_rmi4_free_fingers(struct synaptics_rmi4_data *rmi4_data);
 static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data);
 static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void synaptics_rmi4_early_suspend(struct early_suspend *h);
-
-static void synaptics_rmi4_late_resume(struct early_suspend *h);
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data);
 #endif
 
 static int synaptics_rmi4_suspend(struct device *dev);
@@ -3121,11 +3120,13 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 		goto err_set_input_dev;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	rmi4_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	rmi4_data->early_suspend.suspend = synaptics_rmi4_early_suspend;
-	rmi4_data->early_suspend.resume = synaptics_rmi4_late_resume;
-	register_early_suspend(&rmi4_data->early_suspend);
+#ifdef CONFIG_FB
+	rmi4_data->fb_notif.notifier_call = fb_notifier_callback;
+
+	retval = fb_register_client(&rmi4_data->fb_notif);
+	if (retval)
+		dev_err(&pdev->dev,
+			"%s: Unable to register fb_notifier: %d\n", __func__, retval);
 #endif
 
 	if (!exp_data.initialized) {
@@ -3201,10 +3202,6 @@ err_virtual_buttons:
 	synaptics_rmi4_irq_enable(rmi4_data, false, false);
 
 err_enable_irq:
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&rmi4_data->early_suspend);
-#endif
-
 	synaptics_rmi4_empty_fn_list(rmi4_data);
 	input_unregister_device(rmi4_data->input_dev);
 	rmi4_data->input_dev = NULL;
@@ -3254,10 +3251,6 @@ static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 	}
 
 	synaptics_rmi4_irq_enable(rmi4_data, false, false);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&rmi4_data->early_suspend);
-#endif
 
 	synaptics_rmi4_empty_fn_list(rmi4_data);
 	input_unregister_device(rmi4_data->input_dev);
@@ -3470,74 +3463,28 @@ static void synaptics_rmi4_sensor_wake(struct synaptics_rmi4_data *rmi4_data)
 	return;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void synaptics_rmi4_early_suspend(struct early_suspend *h)
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
 {
-	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
+	struct fb_event *evdata = data;
+	int *blank;
 	struct synaptics_rmi4_data *rmi4_data =
-			container_of(h, struct synaptics_rmi4_data,
-			early_suspend);
+		container_of(self, struct synaptics_rmi4_data, fb_notif);
 
-	if (rmi4_data->stay_awake)
-		return;
-
-	if (rmi4_data->enable_wakeup_gesture) {
-		synaptics_rmi4_wakeup_gesture(rmi4_data, true);
-		goto exit;
+	if (evdata && evdata->data && event == FB_EVENT_BLANK && rmi4_data) {
+		blank = evdata->data;
+		if (*blank == FB_BLANK_UNBLANK) {
+			printk("fb_notifier_callback: FB_BLANK_UNBLANK\n");
+			synaptics_rmi4_resume(&(rmi4_data->input_dev->dev));
+		}
+		else if (*blank == FB_BLANK_POWERDOWN) {
+			printk("fb_notifier_callback: FB_BLANK_POWERDOWN\n");
+			synaptics_rmi4_suspend(&(rmi4_data->input_dev->dev));
+		}
 	}
 
-	synaptics_rmi4_irq_enable(rmi4_data, false, false);
-	synaptics_rmi4_sensor_sleep(rmi4_data);
-	synaptics_rmi4_free_fingers(rmi4_data);
-
-	mutex_lock(&exp_data.mutex);
-	if (!list_empty(&exp_data.list)) {
-		list_for_each_entry(exp_fhandler, &exp_data.list, link)
-			if (exp_fhandler->exp_fn->early_suspend != NULL)
-				exp_fhandler->exp_fn->early_suspend(rmi4_data);
-	}
-	mutex_unlock(&exp_data.mutex);
-
-exit:
-	rmi4_data->suspend = true;
-
-	return;
-}
-
-static void synaptics_rmi4_late_resume(struct early_suspend *h)
-{
-	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
-	struct synaptics_rmi4_data *rmi4_data =
-			container_of(h, struct synaptics_rmi4_data,
-			early_suspend);
-
-	if (rmi4_data->stay_awake)
-		return;
-
-	if (rmi4_data->enable_wakeup_gesture) {
-		synaptics_rmi4_wakeup_gesture(rmi4_data, false);
-		goto exit;
-	}
-
-	rmi4_data->current_page = MASK_8BIT;
-
-	if (rmi4_data->suspend) {
-		synaptics_rmi4_sensor_wake(rmi4_data);
-		synaptics_rmi4_irq_enable(rmi4_data, true, false);
-	}
-
-	mutex_lock(&exp_data.mutex);
-	if (!list_empty(&exp_data.list)) {
-		list_for_each_entry(exp_fhandler, &exp_data.list, link)
-			if (exp_fhandler->exp_fn->late_resume != NULL)
-				exp_fhandler->exp_fn->late_resume(rmi4_data);
-	}
-	mutex_unlock(&exp_data.mutex);
-
-exit:
-	rmi4_data->suspend = false;
-
-	return;
+	return 0;
 }
 #endif
 
@@ -3546,6 +3493,7 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
 
+	printk("synaptics_rmi4_suspend\n");
 	if (rmi4_data->stay_awake)
 		return 0;
 
@@ -3554,9 +3502,10 @@ static int synaptics_rmi4_suspend(struct device *dev)
 		goto exit;
 	}
 
-       // [BUGFIX]-Mod-BEGIN by _TSBJ,shang.liu,02/25/2015
-	rmi4_data->suspend = true;
-       // [BUGFIX]-Mod-END by _TSBJ,shang.liu
+	if (rmi4_data->suspend) {
+		dev_info(dev, "Already in suspend state\n");
+		return 0;
+	}
 
 	if (!rmi4_data->suspend) {
 		synaptics_rmi4_irq_enable(rmi4_data, false, false);
@@ -3583,6 +3532,7 @@ static int synaptics_rmi4_resume(struct device *dev)
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
 
+	printk("synaptics_rmi4_resume\n");
 	if (rmi4_data->stay_awake)
 		return 0;
 
@@ -3610,19 +3560,12 @@ exit:
 	return 0;
 }
 
-static const struct dev_pm_ops synaptics_rmi4_dev_pm_ops = {
-	.suspend = synaptics_rmi4_suspend,
-	.resume  = synaptics_rmi4_resume,
-};
 #endif
 
 static struct platform_driver synaptics_rmi4_driver = {
 	.driver = {
 		.name = PLATFORM_DRIVER_NAME,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_PM
-		.pm = &synaptics_rmi4_dev_pm_ops,
-#endif
 	},
 	.probe = synaptics_rmi4_probe,
 	.remove = __devexit_p(synaptics_rmi4_remove),
