@@ -1779,12 +1779,12 @@ CONFIG_SERIAL_MSM_HS=y
 #
 # Diag Support
 #
-CONFIG_DIAG_CHAR=y
+# CONFIG_DIAG_CHAR is not set
 
 #
 # DIAG traffic over USB
 #
-CONFIG_DIAG_OVER_USB=y
+# CONFIG_DIAG_OVER_USB is not set
 
 #
 # SDIO support for DIAG
