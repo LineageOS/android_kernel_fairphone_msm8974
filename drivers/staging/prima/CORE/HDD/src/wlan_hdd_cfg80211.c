@@ -9411,7 +9411,6 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
        for (i = 0; i < params->seq_len; i++) {
           rsc_counter |= (params->seq[i] << i*8);
        }
-
        WLANTL_SetKeySeqCounter(pVosContext, rsc_counter, staid);
     }
 
