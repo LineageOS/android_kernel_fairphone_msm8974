@@ -3736,6 +3736,11 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 
 		} else if (ieee80211_is_action(mgmt->frame_control)) {
+			if (len > BRCMF_FIL_ACTION_FRAME_SIZE + DOT11_MGMT_HDR_LEN) {
+				brcmf_err("invalid action frame length\n");
+				err = -EINVAL;
+				goto exit;
+			}
 			/* Abort the dwell time of any previous off-channel
 			* action frame that may be still in effect.  Sending
 			* off-channel action frames relies on the driver's
