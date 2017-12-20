@@ -408,6 +408,7 @@
 		qcom,vref-batt-therm = <1800000>;
 
 		/include/ "batterydata-Hip2420.dtsi"
+		/include/ "batterydata-Hip2440.dtsi"
 		/include/ "batterydata-palladium.dtsi"
 		/include/ "batterydata-mtp-3000mah.dtsi"
 	};
