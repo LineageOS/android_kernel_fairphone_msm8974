@@ -717,7 +717,7 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_lock(&ashmem_mutex);
 		if (!asma->file) {
 			ret = 0;
-			asma->size = (size_t) arg;
+			asma->size = (size_t)arg;
 		}
 		mutex_unlock(&ashmem_mutex);
 		break;
