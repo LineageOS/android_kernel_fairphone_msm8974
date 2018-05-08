@@ -215,23 +215,20 @@ eHalStatus oemData_SendMBOemDataReq(tpAniSirGlobal pMac, tOemDataReq *pOemDataRe
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tSirOemDataReq* pMsg;
-    tANI_U16 msgLen;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, pOemDataReq->sessionId );
 
     smsLog(pMac, LOGW, "OEM_DATA: entering Function %s", __func__);
 
-    msgLen = (tANI_U16)(sizeof(tSirOemDataReq));
-
-    pMsg = vos_mem_malloc(msgLen);
+    pMsg = vos_mem_malloc(sizeof(*pMsg));
     if ( NULL == pMsg )
        status = eHAL_STATUS_FAILURE;
     else
        status = eHAL_STATUS_SUCCESS;
     if(HAL_STATUS_SUCCESS(status))
     {
-        vos_mem_set(pMsg, msgLen, 0);
+	vos_mem_set(pMsg, sizeof(*pMsg), 0);
         pMsg->messageType = pal_cpu_to_be16((tANI_U16)eWNI_SME_OEM_DATA_REQ);
-        pMsg->messageLen = pal_cpu_to_be16(msgLen);
+	pMsg->messageLen = pal_cpu_to_be16((uint16_t) sizeof(*pMsg));
         vos_mem_copy(pMsg->selfMacAddr, pSession->selfMacAddr, sizeof(tSirMacAddr) );
         vos_mem_copy(pMsg->oemDataReq, pOemDataReq->oemDataReq, OEM_DATA_REQ_SIZE);
         smsLog(pMac, LOGW, "OEM_DATA: sending message to pe%s", __func__);

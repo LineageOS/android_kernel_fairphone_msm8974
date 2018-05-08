@@ -1514,8 +1514,7 @@ int wlan_hdd_tdls_set_peer_caps(hdd_adapter_t *pAdapter,
 #endif
                                 tCsrStaParams *StaParams,
                                 tANI_BOOLEAN isBufSta,
-                                tANI_BOOLEAN isOffChannelSupported,
-                                tANI_BOOLEAN isQosWmmSta)
+                                tANI_BOOLEAN isOffChannelSupported)
 {
     hddTdlsPeer_t *curr_peer;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
@@ -1551,7 +1550,7 @@ int wlan_hdd_tdls_set_peer_caps(hdd_adapter_t *pAdapter,
 
     curr_peer->supported_oper_classes_len =
                StaParams->supported_oper_classes_len;
-    curr_peer->qos = isQosWmmSta;
+    curr_peer->qos = StaParams->capability & CAPABILITIES_QOS_OFFSET;
 
     mutex_unlock(&pHddCtx->tdls_lock);
     return 0;
@@ -2335,6 +2334,7 @@ void wlan_hdd_tdls_disconnection_callback(hdd_adapter_t *pAdapter)
 
     if (NULL == pHddTdlsCtx)
     {
+       mutex_unlock(&pHddCtx->tdls_lock);
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                  FL("pHddTdlsCtx is NULL"));
         return;
