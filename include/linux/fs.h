@@ -55,6 +55,9 @@ struct inodes_stat_t {
 	int dummy[5];		/* padding for sysctl ABI compatibility */
 };
 
+extern int sysctl_protected_fifos;
+extern int sysctl_protected_regular;
+
 
 #define NR_FILE  8192	/* this can well be larger on a larger system */
 
