@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "86e45c9d_a8bd00bb",
+        "filename": "net/ipv4/route.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 3175,
+      "author": {
+        "id": 16624
+      },
+      "writtenOn": "2019-03-24T20:47:07Z",
+      "side": 1,
+      "message": "I\u0027m not sure what to do with this function here.\nAs I\u0027ve adjusted the signature of rt_fill_info and this function gets used in this one, it didn\u0027t compile anymore.\n\nBut in upstream commit https://github.com/torvalds/linux/commit/89aef8921bfbac22f00e04f8450f6e447db13e42 did basically the same thing, so in my theory, removing this code just skips the routing cache here.",
+      "revId": "271d6dfb6188b61039b687d2133c958a1658a894",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
