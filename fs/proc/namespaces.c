@@ -114,7 +114,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct super_block *sb = inode->i_sb;
 	struct proc_inode *ei = PROC_I(inode);
 	struct task_struct *task;
-	struct dentry *ns_dentry;
+	struct path ns_path;
 	void *error = ERR_PTR(-EACCES);
 
 	task = get_proc_task(inode);
@@ -124,14 +124,14 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
-	ns_dentry = proc_ns_get_dentry(sb, task, ei->ns_ops);
-	if (IS_ERR(ns_dentry)) {
-		error = ERR_CAST(ns_dentry);
+	ns_path.dentry = proc_ns_get_dentry(sb, task, ei->ns_ops);
+	if (IS_ERR(ns_path.dentry)) {
+		error = ERR_CAST(ns_path.dentry);
 		goto out_put_task;
 	}
 
-	dput(nd->path.dentry);
-	nd->path.dentry = ns_dentry;
+	ns_path.mnt = mntget(nd->path.mnt);
+	nd_jump_link(nd, &ns_path);
 	error = NULL;
 
 out_put_task:
@@ -203,7 +203,7 @@ static struct dentry *proc_ns_instantiate(struct inode *dir,
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, NULL))
+	if (pid_revalidate(dentry, 0))
 		error = NULL;
 out:
 	return error;
@@ -280,7 +280,7 @@ const struct file_operations proc_ns_dir_operations = {
 };
 
 static struct dentry *proc_ns_dir_lookup(struct inode *dir,
-				struct dentry *dentry, struct nameidata *nd)
+				struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *error;
 	struct task_struct *task = get_proc_task(dir);
