@@ -43,12 +43,6 @@ struct voice_svc_prvt {
 	struct list_head response_queue;
 	wait_queue_head_t response_wait;
 	spinlock_t response_lock;
-	/*
-	 * This mutex ensures responses are processed in sequential order and
-	 * that no two threads access and free the same response at the same
-	 * time.
-	 */
-	struct mutex response_mutex_lock;
 };
 
 struct apr_data {
@@ -137,7 +131,7 @@ static int32_t qdsp_apr_callback(struct apr_client_data *data, void *priv)
 	}
 
 	spin_unlock_irqrestore(&prtd->response_lock, spin_flags);
-	
+
 	return 0;
 }
 
@@ -405,7 +399,6 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 			pr_debug("%s: RESPONSE: user payload size %d",
 				 __func__, user_payload_size);
 
-			mutex_lock(&prtd->response_mutex_lock);
 			spin_lock_irqsave(&prtd->response_lock, spin_flags);
 			if (!list_empty(&prtd->response_queue)) {
 				resp = list_first_entry(&prtd->response_queue,
@@ -420,7 +413,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 					spin_unlock_irqrestore(
 						&prtd->response_lock,
 						spin_flags);
-					goto unlock;
+					goto done;
 				}
 
 				if (!access_ok(VERIFY_WRITE, arg,
@@ -430,7 +423,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 					spin_unlock_irqrestore(
 						&prtd->response_lock,
 						spin_flags);
-					goto unlock;
+					goto done;
 				}
 
 				if (copy_to_user(arg, &resp->resp,
@@ -445,7 +438,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 					spin_unlock_irqrestore(
 						&prtd->response_lock,
 						spin_flags);
-					goto unlock;
+					goto done;
 				}
 
 				prtd->response_count--;
@@ -454,7 +447,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 				kfree(resp);
 				spin_unlock_irqrestore(&prtd->response_lock,
 							spin_flags);
-				goto unlock;
+				goto done;
 			} else {
 				spin_unlock_irqrestore(&prtd->response_lock,
 							spin_flags);
@@ -467,7 +460,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 				if (ret == 0) {
 					pr_debug("%s: Read timeout\n", __func__);
 					ret = -ETIMEDOUT;
-					goto unlock;
+					goto done;
 				} else if (ret > 0 &&
 					!list_empty(&prtd->response_queue)) {
 					pr_debug("%s: Interrupt recieved for response\n",
@@ -476,7 +469,7 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 				} else if (ret < 0) {
 					pr_debug("%s: Interrupted by SIGNAL %d\n",
 						__func__, ret);
-					goto unlock;
+					goto done;
 				}
 			}
 		} while(!apr_response);
@@ -486,8 +479,6 @@ static long voice_svc_ioctl(struct file *file, unsigned int cmd,
 		ret = -EINVAL;
 	}
 
-unlock:
-	mutex_unlock(&prtd->response_mutex_lock);
 done:
 	if (apr_request != NULL)
 		kfree(apr_request);
@@ -546,7 +537,7 @@ static int voice_svc_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&prtd->response_queue);
 	init_waitqueue_head(&prtd->response_wait);
 	spin_lock_init(&prtd->response_lock);
-	mutex_init(&prtd->response_mutex_lock);
+
 	file->private_data = (void*)prtd;
 
 	/* Current APR implementation doesn't support session based
