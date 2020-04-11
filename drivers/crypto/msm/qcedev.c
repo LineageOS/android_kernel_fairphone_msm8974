@@ -1618,7 +1618,6 @@ static int qcedev_check_cipher_params(struct qcedev_cipher_op_req *req,
 			__func__, total, req->data_len);
 		goto error;
 	}
-
 	return 0;
 error:
 	return -EINVAL;
@@ -1742,12 +1741,13 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		if (copy_to_user((void __user *)arg,
 					&qcedev_areq.cipher_op_req,
 					sizeof(struct qcedev_cipher_op_req)))
-				return -EFAULT;
+			return -EFAULT;
 		break;
 
 	case QCEDEV_IOCTL_SHA_INIT_REQ:
 		{
 		struct scatterlist sg_src;
+
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -1760,7 +1760,7 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			return err;
 		if (copy_to_user((void __user *)arg, &qcedev_areq.sha_op_req,
 					sizeof(struct qcedev_sha_op_req)))
-				return -EFAULT;
+			return -EFAULT;
 		}
 		handle->sha_ctxt.init_done = true;
 		break;
@@ -1770,6 +1770,7 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case QCEDEV_IOCTL_SHA_UPDATE_REQ:
 		{
 		struct scatterlist sg_src;
+
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -1794,7 +1795,7 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 		if (handle->sha_ctxt.diglen > QCEDEV_MAX_SHA_DIGEST) {
 			pr_err("Invalid sha_ctxt.diglen %d\n",
-				handle->sha_ctxt.diglen);
+					handle->sha_ctxt.diglen);
 			return -EINVAL;
 		}
 		memcpy(&qcedev_areq.sha_op_req.digest[0],
@@ -1812,7 +1813,6 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			pr_err("%s Init was not called\n", __func__);
 			return -EINVAL;
 		}
-
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -1842,7 +1842,7 @@ static long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case QCEDEV_IOCTL_GET_SHA_REQ:
 		{
 		struct scatterlist sg_src;
-		
+
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -2179,7 +2179,6 @@ static ssize_t _debug_stats_read(struct file *file, char __user *buf,
 	if (len <= count)
 		rc = simple_read_from_buffer((void __user *) buf, len,
 			ppos, (void *) _debug_read_buf, len);
-
 	return rc;
 }
 
