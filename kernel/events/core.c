@@ -6662,6 +6662,7 @@ out:
 	return ret;
 }
 
+#if 0
 static int perf_event_set_clock(struct perf_event *event, clockid_t clk_id)
 {
 	bool nmi_safe = false;
@@ -6698,7 +6699,7 @@ static int perf_event_set_clock(struct perf_event *event, clockid_t clk_id)
 
 	return 0;
 }
-
+#endif
 
 /**
  * sys_perf_event_open - open a performance event, associate it to a task/cpu
@@ -6829,12 +6830,13 @@ SYSCALL_DEFINE5(perf_event_open,
 	 */
 	pmu = event->pmu;
 
+#if 0
 	if (attr.use_clockid) {
 		err = perf_event_set_clock(event, attr.clockid);
 		if (err)
 			goto err_alloc;
 	}
-
+#endif
 	if (group_leader &&
 	    (is_software_event(event) != is_software_event(group_leader))) {
 		if (is_software_event(event)) {
