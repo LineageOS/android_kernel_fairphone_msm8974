@@ -1,0 +1,36 @@
+From fa6201e879695154f098666dc8df30097ef87fac Mon Sep 17 00:00:00 2001
+From: Dalton Durst <dalton@ubports.com>
+Date: Wed, 10 Nov 2021 09:26:59 -0600
+Subject: [PATCH 1/2] Revert "tmpfs: clear S_ISGID when setting posix ACLs"
+
+This reverts commit 25b91b181e101d9ecf1ee67ce0b87d4ef83862af.
+
+The fix to CVE-2016-7097 was partially completed by 9451fcb7. While
+there was something missed, it was not exactly the contents of this
+commit. This commit caused infinite recursion, leading to kernel panics
+after attempting to set xattrs in a tmpfs.
+---
+ fs/posix_acl.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/fs/posix_acl.c b/fs/posix_acl.c
+index 9607a1df2822..1c61b8d58f9f 100644
+--- a/fs/posix_acl.c
++++ b/fs/posix_acl.c
+@@ -359,9 +359,11 @@ int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
+ 	umode_t mode = inode->i_mode;
+ 	int error;
+ 
+-	error = posix_acl_update_mode(inode, &inode->i_mode, acl);
+-	if (error)
++	error = posix_acl_equiv_mode(*acl, &mode);
++	if (error < 0)
+ 		return error;
++	if (error == 0)
++		*acl = NULL;
+ 	if (!in_group_p(inode->i_gid) &&
+ 	    !capable(CAP_FSETID))
+ 		mode &= ~S_ISGID;
+-- 
+2.25.1
+
