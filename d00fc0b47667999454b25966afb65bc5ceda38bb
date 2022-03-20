@@ -16,6 +16,23 @@
       "message": "Individual commits on https://github.com/chrmhoffmann/android_kernel_fairphone_msm8974/tree/staging/lineage-18.1\n\nAligned with stock FP2\nTaken from Android 10 release:\nhttps://gerrit-public.fairphone.software/kernel/msm\nBranch: rel/10/fp2/22.02.0-rel\n",
       "revId": "d00fc0b47667999454b25966afb65bc5ceda38bb",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "da49994e_2900cde7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 3917
+      },
+      "writtenOn": "2022-03-20T19:01:28Z",
+      "side": 1,
+      "message": "Drops f2fs - not good (or is it?)",
+      "revId": "d00fc0b47667999454b25966afb65bc5ceda38bb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
