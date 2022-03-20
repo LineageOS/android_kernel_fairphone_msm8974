@@ -33,6 +33,24 @@
       "message": "Drops f2fs - not good (or is it?)",
       "revId": "d00fc0b47667999454b25966afb65bc5ceda38bb",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "89757a61_ad830331",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16624
+      },
+      "writtenOn": "2022-03-20T19:18:20Z",
+      "side": 1,
+      "message": "I believe the only reason stock doesn\u0027t have f2fs enabled is that it hasn\u0027t been from the start (ext4 is used for all the partitions) and would increase the maintenance burden somewhat if users were to format their partitions to f2fs and then complain about something not working.",
+      "parentUuid": "da49994e_2900cde7",
+      "revId": "d00fc0b47667999454b25966afb65bc5ceda38bb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
