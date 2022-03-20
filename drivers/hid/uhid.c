@@ -27,6 +27,8 @@
 #define UHID_NAME	"uhid"
 #define UHID_BUFSIZE	32
 
+static DEFINE_MUTEX(uhid_open_mutex);
+
 struct uhid_device {
 	struct mutex devlock;
 	bool running;
@@ -43,14 +45,31 @@ struct uhid_device {
 	__u8 tail;
 	struct uhid_event *outq[UHID_BUFSIZE];
 
+	/* blocking GET_REPORT support; state changes protected by qlock */
 	struct mutex report_lock;
 	wait_queue_head_t report_wait;
-	atomic_t report_done;
-	atomic_t report_id;
+	bool report_running;
+	u32 report_id;
 	struct uhid_event report_buf;
+	struct work_struct worker;
 };
 
 static struct miscdevice uhid_misc;
+
+static void uhid_device_add_worker(struct work_struct *work)
+{
+	struct uhid_device *uhid = container_of(work, struct uhid_device, worker);
+	int ret;
+
+	ret = hid_add_device(uhid->hid);
+	if (ret) {
+		hid_err(uhid->hid, "Cannot register HID device: error %d\n", ret);
+
+		hid_destroy_device(uhid->hid);
+		uhid->hid = NULL;
+		uhid->running = false;
+	}
+}
 
 static void uhid_queue(struct uhid_device *uhid, struct uhid_event *ev)
 {
@@ -104,15 +123,26 @@ static void uhid_hid_stop(struct hid_device *hid)
 static int uhid_hid_open(struct hid_device *hid)
 {
 	struct uhid_device *uhid = hid->driver_data;
+	int retval = 0;
 
-	return uhid_queue_event(uhid, UHID_OPEN);
+	mutex_lock(&uhid_open_mutex);
+	if (!hid->open++) {
+		retval = uhid_queue_event(uhid, UHID_OPEN);
+		if (retval)
+			hid->open--;
+	}
+	mutex_unlock(&uhid_open_mutex);
+	return retval;
 }
 
 static void uhid_hid_close(struct hid_device *hid)
 {
 	struct uhid_device *uhid = hid->driver_data;
 
-	uhid_queue_event(uhid, UHID_CLOSE);
+	mutex_lock(&uhid_open_mutex);
+	if (!--hid->open)
+		uhid_queue_event(uhid, UHID_CLOSE);
+	mutex_unlock(&uhid_open_mutex);
 }
 
 static int uhid_hid_parse(struct hid_device *hid)
@@ -162,22 +192,18 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 
 	spin_lock_irqsave(&uhid->qlock, flags);
 	ev->type = UHID_FEATURE;
-	ev->u.feature.id = atomic_inc_return(&uhid->report_id);
+	ev->u.feature.id = ++uhid->report_id;
 	ev->u.feature.rnum = rnum;
 	ev->u.feature.rtype = report_type;
 
-	atomic_set(&uhid->report_done, 0);
+	uhid->report_running = true;
 	uhid_queue(uhid, ev);
 	spin_unlock_irqrestore(&uhid->qlock, flags);
 
 	ret = wait_event_interruptible_timeout(uhid->report_wait,
-				atomic_read(&uhid->report_done), 5 * HZ);
+				!uhid->report_running || !uhid->running,
+				5 * HZ);
 
-	/*
-	 * Make sure "uhid->running" is cleared on shutdown before
-	 * "uhid->report_done" is set.
-	 */
-	smp_rmb();
 	if (!ret || !uhid->running) {
 		ret = -EIO;
 	} else if (ret < 0) {
@@ -198,7 +224,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 		spin_unlock_irqrestore(&uhid->qlock, flags);
 	}
 
-	atomic_set(&uhid->report_done, 1);
+	uhid->report_running = false;
 
 unlock:
 	mutex_unlock(&uhid->report_lock);
@@ -318,16 +344,77 @@ err_free:
 	return ret;
 }
 
+static int uhid_dev_create2(struct uhid_device *uhid,
+			    const struct uhid_event *ev)
+{
+	struct hid_device *hid;
+	size_t rd_size, len;
+	void *rd_data;
+	int ret;
+
+	if (uhid->running)
+		return -EALREADY;
+
+	rd_size = ev->u.create2.rd_size;
+	if (rd_size <= 0 || rd_size > HID_MAX_DESCRIPTOR_SIZE)
+		return -EINVAL;
+
+	rd_data = kmemdup(ev->u.create2.rd_data, rd_size, GFP_KERNEL);
+	if (!rd_data)
+		return -ENOMEM;
+
+	uhid->rd_size = rd_size;
+	uhid->rd_data = rd_data;
+
+	hid = hid_allocate_device();
+	if (IS_ERR(hid)) {
+		ret = PTR_ERR(hid);
+		goto err_free;
+	}
+
+	len = min(sizeof(hid->name), sizeof(ev->u.create2.name)) - 1;
+	strncpy(hid->name, ev->u.create2.name, len);
+	len = min(sizeof(hid->phys), sizeof(ev->u.create2.phys)) - 1;
+	strncpy(hid->phys, ev->u.create2.phys, len);
+	len = min(sizeof(hid->uniq), sizeof(ev->u.create2.uniq)) - 1;
+	strncpy(hid->uniq, ev->u.create2.uniq, len);
+
+	hid->ll_driver = &uhid_hid_driver;
+	hid->bus = ev->u.create2.bus;
+	hid->vendor = ev->u.create2.vendor;
+	hid->product = ev->u.create2.product;
+	hid->version = ev->u.create2.version;
+	hid->country = ev->u.create2.country;
+	hid->driver_data = uhid;
+	hid->dev.parent = uhid_misc.this_device;
+
+	uhid->hid = hid;
+	uhid->running = true;
+
+	/* Adding of a HID device is done through a worker, to allow HID drivers
+	 * which use feature requests during .probe to work, without they would
+	 * be blocked on devlock, which is held by uhid_char_write.
+	 */
+	schedule_work(&uhid->worker);
+
+	return 0;
+
+err_free:
+	kfree(uhid->rd_data);
+	uhid->rd_data = NULL;
+	uhid->rd_size = 0;
+	return ret;
+}
+
 static int uhid_dev_destroy(struct uhid_device *uhid)
 {
 	if (!uhid->running)
 		return -EINVAL;
 
-	/* clear "running" before setting "report_done" */
 	uhid->running = false;
-	smp_wmb();
-	atomic_set(&uhid->report_done, 1);
 	wake_up_interruptible(&uhid->report_wait);
+
+	cancel_work_sync(&uhid->worker);
 
 	hid_destroy_device(uhid->hid);
 	kfree(uhid->rd_data);
@@ -346,6 +433,17 @@ static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 	return 0;
 }
 
+static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
+{
+	if (!uhid->running)
+		return -EINVAL;
+
+	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input2.data,
+			 min_t(size_t, ev->u.input2.size, UHID_DATA_MAX), 0);
+
+	return 0;
+}
+
 static int uhid_dev_feature_answer(struct uhid_device *uhid,
 				   struct uhid_event *ev)
 {
@@ -357,13 +455,13 @@ static int uhid_dev_feature_answer(struct uhid_device *uhid,
 	spin_lock_irqsave(&uhid->qlock, flags);
 
 	/* id for old report; drop it silently */
-	if (atomic_read(&uhid->report_id) != ev->u.feature_answer.id)
+	if (uhid->report_id != ev->u.feature_answer.id)
 		goto unlock;
-	if (atomic_read(&uhid->report_done))
+	if (!uhid->report_running)
 		goto unlock;
 
 	memcpy(&uhid->report_buf, ev, sizeof(*ev));
-	atomic_set(&uhid->report_done, 1);
+	uhid->report_running = false;
 	wake_up_interruptible(&uhid->report_wait);
 
 unlock:
@@ -385,7 +483,7 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&uhid->waitq);
 	init_waitqueue_head(&uhid->report_wait);
 	uhid->running = false;
-	atomic_set(&uhid->report_done, 1);
+	INIT_WORK(&uhid->worker, uhid_device_add_worker);
 
 	file->private_data = uhid;
 	nonseekable_open(inode, file);
@@ -482,11 +580,17 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 	case UHID_CREATE:
 		ret = uhid_dev_create(uhid, &uhid->input_buf);
 		break;
+	case UHID_CREATE2:
+		ret = uhid_dev_create2(uhid, &uhid->input_buf);
+		break;
 	case UHID_DESTROY:
 		ret = uhid_dev_destroy(uhid);
 		break;
 	case UHID_INPUT:
 		ret = uhid_dev_input(uhid, &uhid->input_buf);
+		break;
+	case UHID_INPUT2:
+		ret = uhid_dev_input2(uhid, &uhid->input_buf);
 		break;
 	case UHID_FEATURE_ANSWER:
 		ret = uhid_dev_feature_answer(uhid, &uhid->input_buf);

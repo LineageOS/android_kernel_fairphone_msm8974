@@ -100,7 +100,6 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	int err;
 	struct super_block *sb;
 	struct pid_namespace *ns;
-	struct proc_inode *ei;
 	char *options;
 
 	if (flags & MS_KERNMOUNT) {
@@ -129,13 +128,6 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		}
 
 		sb->s_flags |= MS_ACTIVE;
-	}
-
-	ei = PROC_I(sb->s_root->d_inode);
-	if (!ei->pid) {
-		rcu_read_lock();
-		ei->pid = get_pid(find_pid_ns(1, ns));
-		rcu_read_unlock();
 	}
 
 	return dget(sb->s_root);
@@ -170,6 +162,7 @@ void __init proc_root_init(void)
 		return;
 	}
 
+	proc_self_init();
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
@@ -202,10 +195,10 @@ static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct
 
 static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
 {
-	if (!proc_lookup(dir, dentry, flags))
+	if (!proc_pid_lookup(dir, dentry, flags))
 		return NULL;
 	
-	return proc_pid_lookup(dir, dentry, flags);
+	return proc_lookup(dir, dentry, flags);
 }
 
 static int proc_root_readdir(struct file * filp,

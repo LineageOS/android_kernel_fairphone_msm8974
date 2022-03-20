@@ -24,6 +24,8 @@
  *		Fixed routing subtrees.
  */
 
+#define pr_fmt(fmt) "IPv6: " fmt
+
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -820,9 +822,7 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
 				goto retry;
 			}
 
-			if (net_ratelimit())
-				printk(KERN_WARNING
-				       "ipv6: Neighbour table overflow.\n");
+			net_warn_ratelimited("Neighbour table overflow\n");
 			dst_free(&rt->dst);
 			return NULL;
 		}
@@ -942,7 +942,7 @@ void ip6_route_input(struct sk_buff *skb)
 		.flowi6_iif = skb->dev->ifindex,
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
-		.flowlabel = (* (__be32 *) iph) & IPV6_FLOWINFO_MASK,
+		.flowlabel = ip6_flowinfo(iph),
 		.flowi6_mark = skb->mark,
 		.flowi6_proto = iph->nexthdr,
 	};
@@ -1106,7 +1106,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 	fl6.flowi6_flags = FLOWI_FLAG_PRECOW_METRICS;
 	fl6.daddr = iph->daddr;
 	fl6.saddr = iph->saddr;
-	fl6.flowlabel = (*(__be32 *) iph) & IPV6_FLOWINFO_MASK;
+	fl6.flowlabel = ip6_flowinfo(iph);
 	fl6.flowi6_uid = uid;
 
 	dst = ip6_route_output(net, NULL, &fl6);
@@ -1350,7 +1350,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	    !(cfg->fc_nlinfo.nlh->nlmsg_flags & NLM_F_CREATE)) {
 		table = fib6_get_table(net, cfg->fc_table);
 		if (!table) {
-			printk(KERN_WARNING "IPv6: NLM_F_CREATE should be specified when creating new route\n");
+			pr_warn("NLM_F_CREATE should be specified when creating new route\n");
 			table = fib6_new_table(net, cfg->fc_table);
 		}
 	} else {
@@ -1722,9 +1722,7 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
 	if (rt == net->ipv6.ip6_null_entry) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "rt6_redirect: source isn't a valid nexthop "
-			       "for redirect target\n");
+		net_dbg_ratelimited("rt6_redirect: source isn't a valid nexthop for redirect target\n");
 		goto out;
 	}
 

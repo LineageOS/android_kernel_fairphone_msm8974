@@ -130,8 +130,15 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_STREAM_ID			= 1U << 9,
 	PERF_SAMPLE_RAW				= 1U << 10,
 	PERF_SAMPLE_BRANCH_STACK		= 1U << 11,
+	PERF_SAMPLE_REGS_USER			= 1U << 12,
+	PERF_SAMPLE_STACK_USER			= 1U << 13,
+	PERF_SAMPLE_WEIGHT                      = 1U << 14,
+        PERF_SAMPLE_DATA_SRC                    = 1U << 15,
+        PERF_SAMPLE_IDENTIFIER                  = 1U << 16,
+        PERF_SAMPLE_TRANSACTION                 = 1U << 17,
+	PERF_SAMPLE_REGS_INTR                   = 1U << 18,
 
-	PERF_SAMPLE_MAX = 1U << 12,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 19,		/* non-ABI */
 };
 
 /*
@@ -161,6 +168,15 @@ enum perf_branch_sample_type {
 	(PERF_SAMPLE_BRANCH_USER|\
 	 PERF_SAMPLE_BRANCH_KERNEL|\
 	 PERF_SAMPLE_BRANCH_HV)
+
+/*
+ * Values to determine ABI of the registers dump.
+ */
+enum perf_sample_regs_abi {
+	PERF_SAMPLE_REGS_ABI_NONE	= 0,
+	PERF_SAMPLE_REGS_ABI_32		= 1,
+	PERF_SAMPLE_REGS_ABI_64		= 2,
+};
 
 /*
  * The format of the data returned by read() on a perf event fd,
@@ -194,6 +210,9 @@ enum perf_event_read_format {
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
 #define PERF_ATTR_SIZE_VER1	72	/* add: config2 */
 #define PERF_ATTR_SIZE_VER2	80	/* add: branch_sample_type */
+#define PERF_ATTR_SIZE_VER3	88	/* add: sample_regs_user */
+#define PERF_ATTR_SIZE_VER4	104	/* add: sample_stack_user */
+#define PERF_ATTR_SIZE_VER5	112     /* add: aux_watermark */
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:
@@ -255,8 +274,12 @@ struct perf_event_attr {
 				exclude_host   :  1, /* don't count in host   */
 				exclude_guest  :  1, /* don't count in guest  */
 				constraint_duplicate : 1,
-
-				__reserved_1   : 42;
+				exclude_callchain_kernel : 1, /* exclude kernel callchains */
+				exclude_callchain_user   : 1, /* exclude user callchains */
+				mmap2          :  1, /* include mmap with inode data */
+				comm_exec      :  1, /* flag comm events that are due to an exec */
+				use_clockid    :  1, /* use @clockid for time fields */
+				__reserved_1   : 37;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -272,7 +295,37 @@ struct perf_event_attr {
 		__u64		bp_len;
 		__u64		config2; /* extension of config1 */
 	};
-	__u64	branch_sample_type; /* enum branch_sample_type */
+	__u64	branch_sample_type; /* enum perf_branch_sample_type */
+
+	/*
+	 * Defines set of user regs to dump on samples.
+	 * See asm/perf_regs.h for details.
+	 */
+	__u64	sample_regs_user;
+
+	/*
+	 * Defines size of the user stack to dump on samples.
+	 */
+	__u32	sample_stack_user;
+
+	__s32   clockid;
+	/*
+	 * Defines set of regs to dump for each sample
+	 * state captured on:
+	 *  - precise = 0: PMU interrupt
+	 *  - precise > 0: sampled instruction
+	 *
+	 * See asm/perf_regs.h for details.
+	 */
+	__u64   sample_regs_intr;
+
+	/*
+	 * Wakeup watermark for AUX area
+	 */
+	__u32   aux_watermark;
+
+	/* Align to u64. */
+	__u32	__reserved_2;
 };
 
 /*
@@ -337,11 +390,18 @@ struct perf_event_mmap_page {
 	__s64	offset;			/* add to hardware event value */
 	__u64	time_enabled;		/* time event active */
 	__u64	time_running;		/* time event on cpu */
+
 	union {
-		__u64	capabilities;
-		__u64	cap_usr_time  : 1,
-			cap_usr_rdpmc : 1,
-			cap_____res   : 62;
+		__u64   capabilities;
+		struct {
+			__u64   cap_bit0                : 1, /* Always 0, deprecated, see commit 860f085b74e9 */
+				cap_bit0_is_deprecated  : 1, /* Always 1, signals that bit 0 is zero */
+
+				cap_user_rdpmc          : 1, /* The RDPMC instruction can be used to read counts */
+				cap_user_time           : 1, /* The time_* fields are used */
+				cap_user_time_zero      : 1, /* The time_zero field is used */
+				cap_____res             : 59;
+		};
 	};
 
 	/*
@@ -382,12 +442,29 @@ struct perf_event_mmap_page {
 	__u16	time_shift;
 	__u32	time_mult;
 	__u64	time_offset;
-
+	/*
+	 * If cap_usr_time_zero, the hardware clock (e.g. TSC) can be calculated
+	 * from sample timestamps.
+	 *
+	 *   time = timestamp - time_zero;
+	 *   quot = time / time_mult;
+	 *   rem  = time % time_mult;
+	 *   cyc = (quot << time_shift) + (rem << time_shift) / time_mult;
+	 *
+	 * And vice versa:
+	 *
+	 *   quot = cyc >> time_shift;
+	 *   rem  = cyc & ((1 << time_shift) - 1);
+	 *   timestamp = time_zero + quot * time_mult +
+	 *               ((rem * time_mult) >> time_shift);
+	 */
+	__u64   time_zero;
+	__u32   size;                   /* Header size up to __reserved[] fields. */
 		/*
 		 * Hole for extension of the self monitor capabilities
 		 */
 
-	__u64	__reserved[120];	/* align to 1k */
+	__u8    __reserved[118*8+4];    /* align to 1k. */
 
 	/*
 	 * Control data for the mmap() data buffer.
@@ -404,6 +481,24 @@ struct perf_event_mmap_page {
 	 */
 	__u64   data_head;		/* head in the data section */
 	__u64	data_tail;		/* user-space written tail */
+	__u64   data_offset;            /* where the buffer starts */
+	__u64   data_size;              /* data buffer size */
+
+	/*
+	 * AUX area is defined by aux_{offset,size} fields that should be set
+	 * by the userspace, so that
+	 *
+	 *   aux_offset >= data_offset + data_size
+	 *
+	 * prior to mmap()ing it. Size of the mmap()ed area should be aux_size.
+	 *
+	 * Ring buffer pointers aux_{head,tail} have the same semantics as
+	 * data_{head,tail} and same ordering rules apply.
+	 */
+	__u64   aux_head;
+	__u64   aux_tail;
+	__u64   aux_offset;
+	__u64   aux_size;
 };
 
 #define PERF_RECORD_MISC_CPUMODE_MASK		(7 << 0)
@@ -413,6 +508,13 @@ struct perf_event_mmap_page {
 #define PERF_RECORD_MISC_HYPERVISOR		(3 << 0)
 #define PERF_RECORD_MISC_GUEST_KERNEL		(4 << 0)
 #define PERF_RECORD_MISC_GUEST_USER		(5 << 0)
+
+/*
+ * PERF_RECORD_MISC_MMAP_DATA and PERF_RECORD_MISC_COMM_EXEC are used on
+ * different events so can reuse the same bit position.
+ */
+#define PERF_RECORD_MISC_MMAP_DATA             (1 << 13)
+#define PERF_RECORD_MISC_COMM_EXEC             (1 << 13)
 
 /*
  * Indicates that the content of PERF_SAMPLE_IP points to
@@ -551,6 +653,13 @@ enum perf_event_type {
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
 	 *
 	 *	{ u64 from, to, flags } lbr[nr];} && PERF_SAMPLE_BRANCH_STACK
+	 *
+	 * 	{ u64			abi; # enum perf_sample_regs_abi
+	 * 	  u64			regs[weight(mask)]; } && PERF_SAMPLE_REGS_USER
+	 *
+	 * 	{ u64			size;
+	 * 	  char			data[size];
+	 * 	  u64			dyn_size; } && PERF_SAMPLE_STACK_USER
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -570,9 +679,12 @@ enum perf_callchain_context {
 	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
+#define PERF_AUX_FLAG_OVERWRITE		0x02    /* snapshot from overwrite mode */
+
 #define PERF_FLAG_FD_NO_GROUP		(1U << 0)
 #define PERF_FLAG_FD_OUTPUT		(1U << 1)
 #define PERF_FLAG_PID_CGROUP		(1U << 2) /* pid=cgroup id, per-cpu mode only */
+#define PERF_FLAG_FD_CLOEXEC		(1U << 3) /* O_CLOEXEC */
 
 #ifdef __KERNEL__
 /*
@@ -610,6 +722,7 @@ struct perf_guest_info_callbacks {
 #include <linux/static_key.h>
 #include <linux/atomic.h>
 #include <linux/sysfs.h>
+#include <linux/perf_regs.h>
 #include <asm/local.h>
 
 #define PERF_MAX_STACK_DEPTH		255
@@ -655,6 +768,11 @@ struct perf_branch_entry {
 struct perf_branch_stack {
 	__u64				nr;
 	struct perf_branch_entry	entries[0];
+};
+
+struct perf_regs {
+	__u64		abi;
+	struct pt_regs	*regs;
 };
 
 struct task_struct;
@@ -728,6 +846,12 @@ struct perf_event;
  * Common implementation detail of pmu::{start,commit,cancel}_txn
  */
 #define PERF_EVENT_TXN 0x1
+#define PERF_PMU_CAP_NO_NMI			0x02
+
+/**
+ * pmu::capabilities flags
+ */
+#define PERF_PMU_CAP_NO_INTERRUPT		0x01
 
 /**
  * struct pmu - generic performance monitoring unit
@@ -739,6 +863,11 @@ struct pmu {
 	const struct attribute_group	**attr_groups;
 	char				*name;
 	int				type;
+
+	/*
+	 * various common per-pmu feature flags
+	 */
+	int				capabilities;
 
 	int * __percpu			pmu_disable_count;
 	struct perf_cpu_context * __percpu pmu_cpu_context;
@@ -758,6 +887,13 @@ struct pmu {
 	 * Should return -ENOENT when the @event doesn't match this PMU.
 	 */
 	int (*event_init)		(struct perf_event *event);
+
+	/*
+	 * Notification that the event was mapped or unmapped.  Called
+	 * in the context of the mapping task.
+	 */
+	void (*event_mapped)		(struct perf_event *event); /*optional*/
+	void (*event_unmapped)		(struct perf_event *event); /*optional*/
 
 #define PERF_EF_START	0x01		/* start the counter when adding    */
 #define PERF_EF_RELOAD	0x02		/* reload the counter when starting */
@@ -815,6 +951,18 @@ struct pmu {
 	 * flush branch stack on context-switches (needed in cpu-wide mode)
 	 */
 	void (*flush_branch_stack)	(void);
+
+	/*
+	 * Set up pmu-private data structures for an AUX area
+	 */
+	void *(*setup_aux)		(int cpu, void **pages,
+					 int nr_pages, bool overwrite);
+					/* optional */
+
+	/*
+	 * Free pmu-private AUX data structures
+	 */
+	void (*free_aux)		(void *aux); /* optional */
 };
 
 /**
@@ -964,6 +1112,8 @@ struct perf_event {
 
 	struct ring_buffer		*rb;
 	struct list_head		rb_entry;
+	unsigned long			rcu_batches;
+	int				rcu_pending;
 
 	/* poll related */
 	wait_queue_head_t		waitq;
@@ -983,6 +1133,7 @@ struct perf_event {
 	struct pid_namespace		*ns;
 	u64				id;
 
+	u64				(*clock)(void);
 	perf_overflow_handler_t		overflow_handler;
 	void				*overflow_handler_context;
 
@@ -1136,13 +1287,23 @@ struct perf_sample_data {
 	struct perf_callchain_entry	*callchain;
 	struct perf_raw_record		*raw;
 	struct perf_branch_stack	*br_stack;
+	struct perf_regs		regs_user;
+	struct perf_regs		regs_intr;
+	u64				stack_user_size;
 };
 
-static inline void perf_sample_data_init(struct perf_sample_data *data, u64 addr)
+static inline void perf_sample_data_init(struct perf_sample_data *data,
+					 u64 addr, u64 period)
 {
 	data->addr = addr;
 	data->raw  = NULL;
 	data->br_stack = NULL;
+	data->period = period;
+	data->regs_user.abi = PERF_SAMPLE_REGS_ABI_NONE;
+	data->regs_user.regs = NULL;
+	data->stack_user_size = 0;
+	data->regs_intr.abi = PERF_SAMPLE_REGS_ABI_NONE;
+	data->regs_intr.regs = NULL;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,
@@ -1231,7 +1392,8 @@ extern struct perf_guest_info_callbacks *perf_guest_cbs;
 extern int perf_register_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
 extern int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
 
-extern void perf_event_comm(struct task_struct *tsk);
+extern void perf_event_exec(void);
+extern void perf_event_comm(struct task_struct *tsk, bool exec);
 extern void perf_event_fork(struct task_struct *tsk);
 
 /* Callchains */
@@ -1277,7 +1439,8 @@ static inline bool perf_paranoid_kernel(void)
 extern void perf_event_init(void);
 extern void perf_tp_event(u64 addr, u64 count, void *record,
 			  int entry_size, struct pt_regs *regs,
-			  struct hlist_head *head, int rctx);
+			  struct hlist_head *head, int rctx,
+			  struct task_struct *task);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags
@@ -1291,11 +1454,18 @@ static inline bool has_branch_stack(struct perf_event *event)
 	return event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK;
 }
 
+static inline bool has_aux(struct perf_event *event)
+{
+	return event->pmu->setup_aux;
+}
+
 extern int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_event *event, unsigned int size);
 extern void perf_output_end(struct perf_output_handle *handle);
-extern void perf_output_copy(struct perf_output_handle *handle,
+extern unsigned int perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
+extern unsigned int perf_output_skip(struct perf_output_handle *handle,
+				     unsigned int len);
 extern int perf_swevent_get_recursion_context(void);
 extern void perf_swevent_put_recursion_context(int rctx);
 extern void perf_event_enable(struct perf_event *event);
@@ -1332,7 +1502,8 @@ static inline int perf_unregister_guest_info_callbacks
 (struct perf_guest_info_callbacks *callbacks)				{ return 0; }
 
 static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
-static inline void perf_event_comm(struct task_struct *tsk)		{ }
+static inline void perf_event_exec(void)				{ }
+static inline void perf_event_comm(struct task_struct *tsk, bool exec)	{ }
 static inline void perf_event_fork(struct task_struct *tsk)		{ }
 static inline void perf_event_init(void)				{ }
 static inline int  perf_swevent_get_recursion_context(void)		{ return -1; }

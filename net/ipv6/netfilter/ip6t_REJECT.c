@@ -114,8 +114,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 			 GFP_ATOMIC);
 
 	if (!nskb) {
-		if (net_ratelimit())
-			pr_debug("cannot alloc skb\n");
+		net_dbg_ratelimited("cannot alloc skb\n");
 		dst_release(dst);
 		return;
 	}
@@ -127,7 +126,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	skb_put(nskb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(nskb);
 	ip6h = ipv6_hdr(nskb);
-	*(__be32 *)ip6h =  htonl(0x60000000 | (tclass << 20));
+	ip6_flow_hdr(ip6h, tclass, 0);
 	ip6h->hop_limit = ip6_dst_hoplimit(dst);
 	ip6h->nexthdr = IPPROTO_TCP;
 	ip6h->saddr = oip6h->daddr;
@@ -211,8 +210,7 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		send_reset(net, skb);
 		break;
 	default:
-		if (net_ratelimit())
-			pr_info("case %u not handled yet\n", reject->with);
+		net_info_ratelimited("case %u not handled yet\n", reject->with);
 		break;
 	}
 

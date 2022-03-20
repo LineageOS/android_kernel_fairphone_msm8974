@@ -331,7 +331,7 @@ again:
 	 * page lock will be acquired only if it is unavoidable
 	 */
 
-	mapping = ACCESS_ONCE(page_head->mapping);
+	mapping = READ_ONCE(page_head->mapping);
 
 	/*
 	 * If page_head->mapping is NULL, then it cannot be a PageAnon
@@ -409,14 +409,14 @@ again:
 		 */
 		rcu_read_lock();
 
-		if (ACCESS_ONCE(page_head->mapping) != mapping) {
+		if (READ_ONCE(page_head->mapping) != mapping) {
 			rcu_read_unlock();
 			put_page(page_head);
 
 			goto again;
 		}
 
-		inode = ACCESS_ONCE(mapping->host);
+		inode = READ_ONCE(mapping->host);
 		if (!inode) {
 			rcu_read_unlock();
 			put_page(page_head);
@@ -429,14 +429,13 @@ again:
 		 * this reference was taken by ihold under the page lock
 		 * pinning the inode in place so i_lock was unnecessary. The
 		 * only way for this check to fail is if the inode was
-		 * truncated in parallel which is almost certainly an
-		 * application bug. In such a case, just retry.
+		 * truncated in parallel so warn for now if this happens.
 		 *
 		 * We are not calling into get_futex_key_refs() in file-backed
 		 * cases, therefore a successful atomic_inc return below will
 		 * guarantee that get_futex_key() will still imply smp_mb(); (B).
 		 */
-		if (!atomic_inc_not_zero(&inode->i_count)) {
+		if (WARN_ON_ONCE(!atomic_inc_not_zero(&inode->i_count))) {
 			rcu_read_unlock();
 			put_page(page_head);
 

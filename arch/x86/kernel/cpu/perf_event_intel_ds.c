@@ -316,8 +316,7 @@ int intel_pmu_drain_bts_buffer(void)
 
 	ds->bts_index = ds->bts_buffer_base;
 
-	perf_sample_data_init(&data, 0);
-	data.period = event->hw.last_period;
+	perf_sample_data_init(&data, 0, event->hw.last_period);
 	regs.ip     = 0;
 
 	/*
@@ -521,7 +520,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 			int bytes, size = MAX_INSN_SIZE;
 
 			bytes = copy_from_user_nmi(buf, (void __user *)to, size);
-			if (bytes != size)
+			if (bytes != 0)
 				return 0;
 
 			kaddr = buf;
@@ -564,8 +563,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	if (!intel_pmu_save_and_restart(event))
 		return;
 
-	perf_sample_data_init(&data, 0);
-	data.period = event->hw.last_period;
+	perf_sample_data_init(&data, 0, event->hw.last_period);
 
 	/*
 	 * We use the interrupt regs as a base because the PEBS record

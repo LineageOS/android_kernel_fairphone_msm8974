@@ -294,6 +294,7 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 	opt_space->opt_flen = fopt->opt_flen;
 	return opt_space;
 }
+EXPORT_SYMBOL_GPL(fl6_merge_options);
 
 static unsigned long check_linger(unsigned long ttl)
 {
@@ -361,8 +362,8 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		msg.msg_control = (void*)(fl->opt+1);
 		memset(&flowi6, 0, sizeof(flowi6));
 
-		err = datagram_send_ctl(net, sk, &msg, &flowi6, fl->opt, &junk,
-					&junk, &junk);
+		err = ip6_datagram_send_ctl(net, sk, &msg, &flowi6, fl->opt,
+					    &junk, &junk, &junk);
 		if (err)
 			goto done;
 		err = -EINVAL;

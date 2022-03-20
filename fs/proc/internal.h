@@ -13,6 +13,7 @@
 struct  ctl_table_header;
 
 extern struct proc_dir_entry proc_root;
+extern void proc_self_init(void);
 #ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
 extern void sysctl_head_put(struct ctl_table_header *head);
@@ -30,8 +31,6 @@ struct vmalloc_info {
 	unsigned long	used;
 	unsigned long	largest_chunk;
 };
-
-extern struct mm_struct *mm_for_maps(struct task_struct *);
 
 #ifdef CONFIG_MMU
 #define VMALLOC_TOTAL (VMALLOC_END - VMALLOC_START)
@@ -70,6 +69,7 @@ extern const struct inode_operations proc_net_inode_operations;
 struct proc_maps_private {
 	struct pid *pid;
 	struct task_struct *task;
+	struct mm_struct *mm;
 #ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
 #endif
@@ -138,7 +138,7 @@ struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 
 
 /* Lookups */
-typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+typedef int instantiate_t(struct inode *, struct dentry *,
 				struct task_struct *, const void *);
 int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	const char *name, int len,
@@ -148,6 +148,8 @@ struct inode *proc_pid_make_inode(struct super_block * sb, struct task_struct *t
 extern const struct dentry_operations pid_dentry_operations;
 int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 int proc_setattr(struct dentry *dentry, struct iattr *attr);
+
+struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
 
 extern const struct inode_operations proc_ns_dir_inode_operations;
 extern const struct file_operations proc_ns_dir_operations;

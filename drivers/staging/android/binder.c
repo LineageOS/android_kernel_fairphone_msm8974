@@ -15,6 +15,39 @@
  *
  */
 
+/*
+ * Locking overview
+ *
+ * There are 3 main spinlocks which must be acquired in the
+ * order shown:
+ *
+ * 1) proc->outer_lock : protects binder_ref
+ *    binder_proc_lock() and binder_proc_unlock() are
+ *    used to acq/rel.
+ * 2) node->lock : protects most fields of binder_node.
+ *    binder_node_lock() and binder_node_unlock() are
+ *    used to acq/rel
+ * 3) proc->inner_lock : protects the thread and node lists
+ *    (proc->threads, proc->nodes) and all todo lists associated
+ *    with the binder_proc (proc->todo, thread->todo,
+ *    proc->delivered_death and node->async_todo).
+ *    binder_inner_proc_lock() and binder_inner_proc_unlock()
+ *    are used to acq/rel
+ *
+ * Any lock under procA must never be nested under any lock at the same
+ * level or below on procB.
+ *
+ * Functions that require a lock held on entry indicate which lock
+ * in the suffix of the function name:
+ *
+ * foo_olocked() : requires node->outer_lock
+ * foo_nlocked() : requires node->lock
+ * foo_ilocked() : requires proc->inner_lock
+ * foo_oilocked(): requires proc->outer_lock and proc->inner_lock
+ * foo_nilocked(): requires node->lock and proc->inner_lock
+ * ...
+ */
+
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/cacheflush.h>
@@ -37,6 +70,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <linux/spinlock.h>
 
 #include "binder.h"
 #include "binder_trace.h"
@@ -105,6 +139,7 @@ enum {
 	BINDER_DEBUG_PRIORITY_CAP           = 1U << 14,
 	BINDER_DEBUG_BUFFER_ALLOC_ASYNC     = 1U << 15,
 	BINDER_DEBUG_TOP_ERRORS		    = 1U << 16,
+	BINDER_DEBUG_SPINLOCKS              = 1U << 17,
 };
 static uint32_t binder_debug_mask;
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
@@ -246,8 +281,43 @@ struct binder_work {
 	} type;
 };
 
+/**
+ * struct binder_node - binder node bookkeeping
+ * @debug_id:             unique ID for debugging
+ *                        (invariant after initialized)
+ * @lock:                 lock for node fields
+ * @work:                 worklist element for node work
+ * @rb_node:              element for proc->nodes tree
+ * @dead_node:            element for binder_dead_nodes list
+ *                        (protected by binder_dead_nodes_lock)
+ * @proc:                 binder_proc that owns this node
+ *                        (invariant after initialized)
+ * @refs:                 list of references on this node
+ * @internal_strong_refs: used to take strong references when
+ *                        initiating a transaction
+ * @local_weak_refs:      weak user refs from local process
+ * @local_strong_refs:    strong user refs from local process
+ * @tmp_refs:             temporary kernel refs
+ * @ptr:                  userspace pointer for node
+ *                        (invariant, no lock needed)
+ * @cookie:               userspace cookie for node
+ *                        (invariant, no lock needed)
+ * @has_strong_ref:       userspace notified of strong ref
+ * @pending_strong_ref:   userspace has acked notification of strong ref
+ * @has_weak_ref:         userspace notified of weak ref
+ * @pending_weak_ref:     userspace has acked notification of weak ref
+ * @has_async_transaction: async transaction to node in progress
+ * @accept_fds:           file descriptor operations supported for node
+ *                        (invariant after initialized)
+ * @min_priority:         minimum scheduling priority
+ *                        (invariant after initialized)
+ * @async_todo:           list of async work items
+ *
+ * Bookkeeping structure for binder nodes.
+ */
 struct binder_node {
 	int debug_id;
+	spinlock_t lock;
 	struct binder_work work;
 	union {
 		struct rb_node rb_node;
@@ -312,10 +382,56 @@ struct binder_buffer {
 };
 
 enum binder_deferred_state {
-	BINDER_DEFERRED_FLUSH        = 0x01,
-	BINDER_DEFERRED_RELEASE      = 0x02,
+	BINDER_DEFERRED_PUT_FILES    = 0x01,
+	BINDER_DEFERRED_FLUSH        = 0x02,
+	BINDER_DEFERRED_RELEASE      = 0x04,
 };
 
+/**
+ * struct binder_proc - binder process bookkeeping
+ * @proc_node:            element for binder_procs list
+ * @threads:              rbtree of binder_threads in this proc
+ * @nodes:                rbtree of binder nodes associated with
+ *                        this proc ordered by node->ptr
+ * @refs_by_desc:         rbtree of refs ordered by ref->desc
+ * @refs_by_node:         rbtree of refs ordered by ref->node
+ * @pid                   PID of group_leader of process
+ *                        (invariant after initialized)
+ * @tsk                   task_struct for group_leader of process
+ *                        (invariant after initialized)
+ * @files                 files_struct for process
+ *                        (invariant after initialized)
+ * @deferred_work_node:   element for binder_deferred_list
+ *                        (protected by binder_deferred_lock)
+ * @deferred_work:        bitmap of deferred work to perform
+ *                        (protected by binder_deferred_lock)
+ * @is_dead:              process is dead and awaiting free
+ *                        when outstanding transactions are cleaned up
+ * @todo:                 list of work for this process
+ * @wait:                 wait queue head to wait for proc work
+ *                        (invariant after initialized)
+ * @stats:                per-process binder statistics
+ *                        (atomics, no lock needed)
+ * @delivered_death:      list of delivered death notification
+ * @max_threads:          cap on number of binder threads
+ * @requested_threads:    number of binder threads requested but not
+ *                        yet started. In current implementation, can
+ *                        only be 0 or 1.
+ * @requested_threads_started: number binder threads started
+ * @ready_threads:        number of threads waiting for proc work
+ * @tmp_ref:              temporary reference to indicate proc is in use
+ * @default_priority:     default scheduler priority
+ *                        (invariant after initialized)
+ * @debugfs_entry:        debugfs node
+ * @alloc:                binder allocator bookkeeping
+ * @context:              binder_context for this proc
+ *                        (invariant after initialized)
+ * @inner_lock:           can nest under outer_lock and/or node lock
+ * @outer_lock:           no nesting under innor or node lock
+ *                        Lock order: 1) outer, 2) node, 3) inner
+ *
+ * Bookkeeping structure for binder processes
+ */
 struct binder_proc {
 	struct hlist_node proc_node;
 	struct rb_root threads;
@@ -326,6 +442,8 @@ struct binder_proc {
 	struct vm_area_struct *vma;
 	struct mm_struct *vma_vm_mm;
 	struct task_struct *tsk;
+	struct files_struct *files;
+	struct mutex files_lock;
 	struct hlist_node deferred_work_node;
 	int deferred_work;
 	void *buffer;
@@ -350,6 +468,8 @@ struct binder_proc {
 	long default_priority;
 	struct dentry *debugfs_entry;
 	struct binder_context *context;
+	spinlock_t inner_lock;
+	spinlock_t outer_lock;
 };
 
 enum {
@@ -361,6 +481,33 @@ enum {
 	BINDER_LOOPER_STATE_NEED_RETURN = 0x20
 };
 
+/**
+ * struct binder_thread - binder thread bookkeeping
+ * @proc:                 binder process for this thread
+ *                        (invariant after initialization)
+ * @rb_node:              element for proc->threads rbtree
+ * @pid:                  PID for this thread
+ *                        (invariant after initialization)
+ * @looper:               bitmap of looping state
+ *                        (only accessed by this thread)
+ * @looper_needs_return:  looping thread needs to exit driver
+ *                        (no lock needed)
+ * @transaction_stack:    stack of in-progress transactions for this thread
+ * @todo:                 list of work to do for this thread
+ * @return_error:         transaction errors reported by this thread
+ *                        (only accessed by this thread)
+ * @reply_error:          transaction errors reported by target thread
+ * @wait:                 wait queue for thread work
+ * @stats:                per-thread statistics
+ *                        (atomics, no lock needed)
+ * @tmp_ref:              temporary reference to indicate thread is in use
+ *                        (atomic since @proc->inner_lock cannot
+ *                        always be acquired)
+ * @is_dead:              thread is dead and awaiting free
+ *                        when outstanding transactions are cleaned up
+ *
+ * Bookkeeping structure for binder threads.
+ */
 struct binder_thread {
 	struct binder_proc *proc;
 	struct rb_node rb_node;
@@ -396,81 +543,126 @@ struct binder_transaction {
 	binder_uintptr_t security_ctx;
 };
 
+#if 0 // Disable locking helper functions as long as they are not used.
+/**
+ * binder_proc_lock() - Acquire outer lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Acquires proc->outer_lock. Used to protect binder_ref
+ * structures associated with the given proc.
+ */
+#define binder_proc_lock(proc) _binder_proc_lock(proc, __LINE__)
+static void
+_binder_proc_lock(struct binder_proc *proc, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&proc->outer_lock);
+}
+
+/**
+ * binder_proc_unlock() - Release spinlock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Release lock acquired via binder_proc_lock()
+ */
+#define binder_proc_unlock(_proc) _binder_proc_unlock(_proc, __LINE__)
+static void
+_binder_proc_unlock(struct binder_proc *proc, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&proc->outer_lock);
+}
+#endif
+
+/**
+ * binder_inner_proc_lock() - Acquire inner lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Acquires proc->inner_lock. Used to protect todo lists
+ */
+#define binder_inner_proc_lock(proc) _binder_inner_proc_lock(proc, __LINE__)
+static void
+_binder_inner_proc_lock(struct binder_proc *proc, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&proc->inner_lock);
+}
+
+/**
+ * binder_inner_proc_unlock() - Release inner lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Release lock acquired via binder_inner_proc_lock()
+ */
+#define binder_inner_proc_unlock(proc) _binder_inner_proc_unlock(proc, __LINE__)
+static void
+_binder_inner_proc_unlock(struct binder_proc *proc, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&proc->inner_lock);
+}
+
+#if 0 // Disable locking helper functions as long as they are not used.
+/**
+ * binder_node_lock() - Acquire spinlock for given binder_node
+ * @node:         struct binder_node to acquire
+ *
+ * Acquires node->lock. Used to protect binder_node fields
+ */
+#define binder_node_lock(node) _binder_node_lock(node, __LINE__)
+static void
+_binder_node_lock(struct binder_node *node, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&node->lock);
+}
+
+/**
+ * binder_node_unlock() - Release spinlock for given binder_proc
+ * @node:         struct binder_node to acquire
+ *
+ * Release lock acquired via binder_node_lock()
+ */
+#define binder_node_unlock(node) _binder_node_unlock(node, __LINE__)
+static void
+_binder_node_unlock(struct binder_node *node, int line)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&node->lock);
+}
+#endif
+
 static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 
-static struct files_struct *binder_get_files_struct(struct binder_proc *proc)
-{
-	return get_files_struct(proc->tsk);
-}
-
-/*
- * copied from get_unused_fd_flags
- */
 static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
-	struct files_struct *files;
-	int fd, error;
-	struct fdtable *fdt;
 	unsigned long rlim_cur;
 	unsigned long irqs;
+	int ret;
 
-	files = binder_get_files_struct(proc);
-	if (files == NULL)
-		return -ESRCH;
-
-	error = -EMFILE;
-	spin_lock(&files->file_lock);
-
-repeat:
-	fdt = files_fdtable(files);
-	fd = find_next_zero_bit(fdt->open_fds, fdt->max_fds, files->next_fd);
-
-	/*
-	 * N.B. For clone tasks sharing a files structure, this test
-	 * will limit the total number of files that can be opened.
-	 */
-	rlim_cur = 0;
-	if (lock_task_sighand(proc->tsk, &irqs)) {
-		rlim_cur = proc->tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-		unlock_task_sighand(proc->tsk, &irqs);
+	mutex_lock(&proc->files_lock);
+	if (proc->files == NULL) {
+		ret = -ESRCH;
+		goto err;
 	}
-	if (fd >= rlim_cur)
-		goto out;
-
-	/* Do we need to expand the fd array or fd set?  */
-	error = expand_files(files, fd);
-	if (error < 0)
-		goto out;
-
-	if (error) {
-		/*
-		 * If we needed to expand the fs array we
-		 * might have blocked - try again.
-		 */
-		error = -EMFILE;
-		goto repeat;
+	if (!lock_task_sighand(proc->tsk, &irqs)) {
+		ret = -EMFILE;
+		goto err;
 	}
+	rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
+	unlock_task_sighand(proc->tsk, &irqs);
 
-	__set_open_fd(fd, fdt);
-	if (flags & O_CLOEXEC)
-		__set_close_on_exec(fd, fdt);
-	else
-		__clear_close_on_exec(fd, fdt);
-	files->next_fd = fd + 1;
-#if 1
-	/* Sanity check */
-	if (fdt->fd[fd] != NULL) {
-		pr_warn("get_unused_fd: slot %d not NULL!\n", fd);
-		fdt->fd[fd] = NULL;
-	}
-#endif
-	error = fd;
-
-out:
-	spin_unlock(&files->file_lock);
-	put_files_struct(files);
-	return error;
+	ret = __alloc_fd(proc->files, 0, rlim_cur, flags);
+err:
+	mutex_unlock(&proc->files_lock);
+	return ret;
 }
 
 /*
@@ -479,30 +671,10 @@ out:
 static void task_fd_install(
 	struct binder_proc *proc, unsigned int fd, struct file *file)
 {
-	struct files_struct *files;
-	struct fdtable *fdt;
-
-	files = binder_get_files_struct(proc);
-	if (files == NULL)
-		return;
-
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	BUG_ON(fdt->fd[fd] != NULL);
-	rcu_assign_pointer(fdt->fd[fd], file);
-	spin_unlock(&files->file_lock);
-	put_files_struct(files);
-}
-
-/*
- * copied from __put_unused_fd in open.c
- */
-static void __put_unused_fd(struct files_struct *files, unsigned int fd)
-{
-	struct fdtable *fdt = files_fdtable(files);
-	__clear_open_fd(fd, fdt);
-	if (fd < files->next_fd)
-		files->next_fd = fd;
+	mutex_lock(&proc->files_lock);
+	if (proc->files)
+		__fd_install(proc->files, fd, file);
+	mutex_unlock(&proc->files_lock);
 }
 
 /*
@@ -510,41 +682,23 @@ static void __put_unused_fd(struct files_struct *files, unsigned int fd)
  */
 static long task_close_fd(struct binder_proc *proc, unsigned int fd)
 {
-	struct file *filp;
-	struct files_struct *files = binder_get_files_struct(proc);
-	struct fdtable *fdt;
 	int retval;
 
-	if (files == NULL)
-		return -ESRCH;
-
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (fd >= fdt->max_fds)
-		goto out_unlock;
-	filp = fdt->fd[fd];
-	if (!filp)
-		goto out_unlock;
-	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__clear_close_on_exec(fd, fdt);
-	__put_unused_fd(files, fd);
-	spin_unlock(&files->file_lock);
-	retval = filp_close(filp, files);
-
+	mutex_lock(&proc->files_lock);
+	if (proc->files == NULL) {
+		retval = -ESRCH;
+		goto err;
+	}
+	retval = __close_fd(proc->files, fd);
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
 		     retval == -ERESTARTNOINTR ||
 		     retval == -ERESTARTNOHAND ||
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
-	put_files_struct(files);
-
+err:
+	mutex_unlock(&proc->files_lock);
 	return retval;
-
-out_unlock:
-	spin_unlock(&files->file_lock);
-	put_files_struct(files);
-	return -EBADF;
 }
 
 static inline void binder_lock(const char *tag)
@@ -1095,6 +1249,7 @@ static struct binder_node *binder_new_node(struct binder_proc *proc,
 	node->cookie = cookie;
 	node->work.type = BINDER_WORK_NODE;
 	node->txn_security_ctx = !!(flags & FLAT_BINDER_FLAG_TXN_SECURITY_CTX);
+	spin_lock_init(&node->lock);
 	INIT_LIST_HEAD(&node->work.entry);
 	INIT_LIST_HEAD(&node->async_todo);
 	binder_debug(BINDER_DEBUG_INTERNAL_REFS,
@@ -1360,16 +1515,28 @@ static int binder_dec_ref(struct binder_ref *ref, int strong)
 static void binder_pop_transaction(struct binder_thread *target_thread,
 				   struct binder_transaction *t)
 {
-	if (target_thread) {
-		BUG_ON(target_thread->transaction_stack != t);
-		BUG_ON(target_thread->transaction_stack->from != target_thread);
-		target_thread->transaction_stack =
-			target_thread->transaction_stack->from_parent;
-		t->from = NULL;
+	BUG_ON(!target_thread);
+	BUG_ON(target_thread->transaction_stack != t);
+	BUG_ON(target_thread->transaction_stack->from != target_thread);
+	target_thread->transaction_stack =
+		target_thread->transaction_stack->from_parent;
+	t->from = NULL;
+}
+
+static void binder_free_transaction(struct binder_transaction *t)
+{
+	struct binder_proc *target_proc = t->to_proc;
+
+	if (target_proc) {
+		binder_inner_proc_lock(target_proc);
+		if (t->buffer)
+			t->buffer->transaction = NULL;
+		binder_inner_proc_unlock(target_proc);
 	}
-	t->need_reply = 0;
-	if (t->buffer)
-		t->buffer->transaction = NULL;
+	/*
+	 * If the transaction has no target_proc, then
+	 * t->buffer->transaction has already been cleared.
+	 */
 	kfree(t);
 	binder_stats_deleted(BINDER_STAT_TRANSACTION);
 }
@@ -1378,6 +1545,7 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 				     uint32_t error_code)
 {
 	struct binder_thread *target_thread;
+	struct binder_transaction *next;
 
 	BUG_ON(t->flags & TF_ONE_WAY);
 	while (1) {
@@ -1398,6 +1566,7 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 				binder_pop_transaction(target_thread, t);
 				target_thread->return_error = error_code;
 				wake_up_interruptible(&target_thread->wait);
+				binder_free_transaction(t);
 			} else {
 				binder_debug(BINDER_DEBUG_TOP_ERRORS,
 					     "reply failed, target thread, %d:%d, has error code %d already\n",
@@ -1406,24 +1575,23 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 					     target_thread->return_error);
 			}
 			return;
-		} else {
-			struct binder_transaction *next = t->from_parent;
-
-			binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
-				     "send failed reply for transaction %d, target dead\n",
-				     t->debug_id);
-
-			binder_pop_transaction(target_thread, t);
-			if (next == NULL) {
-				binder_debug(BINDER_DEBUG_DEAD_BINDER,
-					     "reply failed, no target thread at root\n");
-				return;
-			}
-			t = next;
-			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "reply failed, no target thread -- retry %d\n",
-				      t->debug_id);
 		}
+		next = t->from_parent;
+
+		binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
+			     "send failed reply for transaction %d, target dead\n",
+			     t->debug_id);
+
+		binder_free_transaction(t);
+		if (next == NULL) {
+			binder_debug(BINDER_DEBUG_DEAD_BINDER,
+				     "reply failed, no target thread at root\n");
+			return;
+		}
+		t = next;
+		binder_debug(BINDER_DEBUG_DEAD_BINDER,
+			     "reply failed, no target thread -- retry %d\n",
+			      t->debug_id);
 	}
 }
 
@@ -2368,6 +2536,7 @@ static void binder_transaction(struct binder_proc *proc,
 	if (reply) {
 		BUG_ON(t->buffer->async_transaction != 0);
 		binder_pop_transaction(target_thread, in_reply_to);
+		binder_free_transaction(in_reply_to);
 	} else if (!(t->flags & TF_ONE_WAY)) {
 		BUG_ON(t->buffer->async_transaction != 0);
 		t->need_reply = 1;
@@ -2600,10 +2769,12 @@ static int binder_thread_write(struct binder_proc *proc,
 				     proc->pid, thread->pid, (u64)data_ptr, buffer->debug_id,
 				     buffer->transaction ? "active" : "finished");
 
+			binder_inner_proc_lock(proc);
 			if (buffer->transaction) {
 				buffer->transaction->buffer = NULL;
 				buffer->transaction = NULL;
 			}
+			binder_inner_proc_unlock(proc);
 			if (buffer->async_transaction && buffer->target_node) {
 				BUG_ON(!buffer->target_node->has_async_transaction);
 				if (list_empty(&buffer->target_node->async_todo))
@@ -3139,9 +3310,7 @@ retry:
 			t->to_thread = thread;
 			thread->transaction_stack = t;
 		} else {
-			t->buffer->transaction = NULL;
-			kfree(t);
-			binder_stats_deleted(BINDER_STAT_TRANSACTION);
+			binder_free_transaction(t);
 		}
 		break;
 	}
@@ -3184,9 +3353,7 @@ static void binder_release_work(struct list_head *list)
 				binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
 					"undelivered transaction %d\n",
 					t->debug_id);
-				t->buffer->transaction = NULL;
-				kfree(t);
-				binder_stats_deleted(BINDER_STAT_TRANSACTION);
+				binder_free_transaction(t);
 			}
 		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
@@ -3518,6 +3685,7 @@ static void binder_vma_close(struct vm_area_struct *vma)
 		     (unsigned long)pgprot_val(vma->vm_page_prot));
 	proc->vma = NULL;
 	proc->vma_vm_mm = NULL;
+	binder_defer_work(proc, BINDER_DEFERRED_PUT_FILES);
 }
 
 static int binder_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -3620,6 +3788,9 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	binder_insert_free_buffer(proc, buffer);
 	proc->free_async_space = proc->buffer_size / 2;
 	barrier();
+	mutex_lock(&proc->files_lock);
+	proc->files = get_files_struct(current);
+	mutex_unlock(&proc->files_lock);
 	proc->vma = vma;
 	proc->vma_vm_mm = vma->vm_mm;
 
@@ -3659,8 +3830,11 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
 	if (proc == NULL)
 		return -ENOMEM;
+	spin_lock_init(&proc->inner_lock);
+	spin_lock_init(&proc->outer_lock);
 	get_task_struct(current->group_leader);
 	proc->tsk = current->group_leader;
+	mutex_init(&proc->files_lock);
 	INIT_LIST_HEAD(&proc->todo);
 	init_waitqueue_head(&proc->wait);
 	proc->default_priority = task_nice(current);
@@ -3750,6 +3924,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 		active_transactions, page_count;
 
 	BUG_ON(proc->vma);
+	BUG_ON(proc->files);
 
 	hlist_del(&proc->proc_node);
 
@@ -3888,6 +4063,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 static void binder_deferred_func(struct work_struct *work)
 {
 	struct binder_proc *proc;
+	struct files_struct *files;
 
 	int defer;
 
@@ -3906,6 +4082,15 @@ static void binder_deferred_func(struct work_struct *work)
 		}
 		mutex_unlock(&binder_deferred_lock);
 
+		files = NULL;
+		if (defer & BINDER_DEFERRED_PUT_FILES) {
+			mutex_lock(&proc->files_lock);
+			files = proc->files;
+			if (files)
+				proc->files = NULL;
+			mutex_unlock(&proc->files_lock);
+		}
+
 		if (defer & BINDER_DEFERRED_FLUSH)
 			binder_deferred_flush(proc);
 
@@ -3913,6 +4098,8 @@ static void binder_deferred_func(struct work_struct *work)
 			binder_deferred_release(proc); /* frees proc */
 
 		binder_unlock(__func__);
+		if (files)
+			put_files_struct(files);
 	} while (proc);
 }
 static DECLARE_WORK(binder_deferred_work, binder_deferred_func);

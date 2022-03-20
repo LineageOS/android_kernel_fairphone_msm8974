@@ -709,10 +709,7 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
 		if (!early_drop(net, hash_bucket(hash, net))) {
 			atomic_dec(&net->ct.count);
-			if (net_ratelimit())
-				printk(KERN_WARNING
-				       "nf_conntrack: table full, dropping"
-				       " packet.\n");
+			net_warn_ratelimited("nf_conntrack: table full, dropping packet\n");
 			return ERR_PTR(-ENOMEM);
 		}
 	}
@@ -1577,6 +1574,7 @@ err_proto:
 
 static int nf_conntrack_init_net(struct net *net)
 {
+	static atomic64_t unique_id;
 	int ret;
 
 	atomic_set(&net->ct.count, 0);
@@ -1588,7 +1586,8 @@ static int nf_conntrack_init_net(struct net *net)
 		goto err_stat;
 	}
 
-	net->ct.slabname = kasprintf(GFP_KERNEL, "nf_conntrack_%pK", net);
+	net->ct.slabname = kasprintf(GFP_KERNEL, "nf_conntrack_%llu",
+				(u64)atomic64_inc_return(&unique_id));
 	if (!net->ct.slabname) {
 		ret = -ENOMEM;
 		goto err_slabname;

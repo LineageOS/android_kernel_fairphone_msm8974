@@ -18,6 +18,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "IPv6: " fmt
 
 #include <linux/module.h>
 #include <linux/capability.h>
@@ -342,7 +343,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			struct net_device *dev = NULL;
 
 			rcu_read_lock();
-			if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			if (__ipv6_addr_needs_scope_id(addr_type)) {
 				if (addr_len >= sizeof(struct sockaddr_in6) &&
 				    addr->sin6_scope_id) {
 					/* Override any existing binding, if another one
@@ -493,8 +494,8 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 
 		sin->sin6_port = inet->inet_sport;
 	}
-	if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-		sin->sin6_scope_id = sk->sk_bound_dev_if;
+	sin->sin6_scope_id = ipv6_iface_scope_id(&sin->sin6_addr,
+						 sk->sk_bound_dev_if);
 	*uaddr_len = sizeof(*sin);
 	return 0;
 }
@@ -656,13 +657,11 @@ out:
 	return ret;
 
 out_permanent:
-	printk(KERN_ERR "Attempt to override permanent protocol %d.\n",
-	       protocol);
+	pr_err("Attempt to override permanent protocol %d\n", protocol);
 	goto out;
 
 out_illegal:
-	printk(KERN_ERR
-	       "Ignoring attempt to register invalid socket type %d.\n",
+	pr_err("Ignoring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -673,8 +672,7 @@ void
 inet6_unregister_protosw(struct inet_protosw *p)
 {
 	if (INET_PROTOSW_PERMANENT & p->flags) {
-		printk(KERN_ERR
-		       "Attempt to unregister permanent protocol %d.\n",
+		pr_err("Attempt to unregister permanent protocol %d\n",
 		       p->protocol);
 	} else {
 		spin_lock_bh(&inetsw6_lock);
@@ -1134,9 +1132,7 @@ static int __init inet6_init(void)
 		INIT_LIST_HEAD(r);
 
 	if (disable_ipv6_mod) {
-		printk(KERN_INFO
-		       "IPv6: Loaded, but administratively disabled, "
-		       "reboot required to enable\n");
+		pr_info("Loaded, but administratively disabled, reboot required to enable\n");
 		goto out;
 	}
 
@@ -1158,14 +1154,14 @@ static int __init inet6_init(void)
 
 	err = proto_register(&pingv6_prot, 1);
 	if (err)
-		goto out_unregister_ping_proto;
+		goto out_unregister_raw_proto;
 
 	/* We MUST register RAW sockets before we create the ICMP6,
 	 * IGMP6, or NDISC control sockets.
 	 */
 	err = rawv6_init();
 	if (err)
-		goto out_unregister_raw_proto;
+		goto out_unregister_ping_proto;
 
 	/* Register the family here so that the init calls below will
 	 * be able to create sockets. (?? is this dangerous ??)

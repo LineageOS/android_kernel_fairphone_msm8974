@@ -1155,8 +1155,7 @@ static int ip6mr_cache_report(struct mr6_table *mrt, struct sk_buff *pkt,
 	 */
 	ret = sock_queue_rcv_skb(mrt->mroute6_sk, skb);
 	if (ret < 0) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "mroute6: pending queue full, dropping entries.\n");
+		net_warn_ratelimited("mroute6: pending queue full, dropping entries\n");
 		kfree_skb(skb);
 	}
 
@@ -1359,7 +1358,7 @@ int __init ip6_mr_init(void)
 		goto reg_notif_fail;
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (inet6_add_protocol(&pim6_protocol, IPPROTO_PIM) < 0) {
-		printk(KERN_ERR "ip6_mr_init: can't add PIM protocol\n");
+		pr_err("%s: can't add PIM protocol\n", __func__);
 		err = -EAGAIN;
 		goto add_proto_fail;
 	}
